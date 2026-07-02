@@ -1,0 +1,151 @@
+name: Scrape, Build & Publish Database
+
+on:
+  schedule:
+    # Twice daily — adjust to match patch/event cadence. Kept conservative
+    # to stay polite to sources; tighten only if a source needs faster reflection.
+    - cron: "0 6,18 * * *"
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: "Publish a release even if no data changed"
+        type: boolean
+        default: false
+
+concurrency:
+  group: scrape-publish
+  cancel-in-progress: false   # never cancel a mid-flight publish
+
+jobs:
+  scrape-and-build:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+      new_version: ${{ steps.version.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run scrapers + validation + normalization
+        run: python -m backend.orchestrator scrape --all --output build/staged
+
+      - name: Detect changes vs last published version
+        id: diff
+        run: |
+          python -m backend.pipeline.change_detector \
+            --staged build/staged \
+            --previous-ref "$(git tag --sort=-creatordate | head -n1)" \
+            --output build/diff_report.json
+          CHANGED=$(python -c "import json;print(str(json.load(open('build/diff_report.json'))['has_changes']).lower())")
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+
+      - name: Run image optimization pipeline
+        if: steps.diff.outputs.changed == 'true' || inputs.force_publish
+        run: python -m backend.pipeline.image_pipeline --input build/staged/assets --output build/optimized_assets
+
+      - name: Generate databases + manifest
+        if: steps.diff.outputs.changed == 'true' || inputs.force_publish
+        id: version
+        run: |
+          python -m backend.pipeline.db_generator \
+            --staged build/staged \
+            --assets build/optimized_assets \
+            --diff-report build/diff_report.json \
+            --output build/release
+          echo "new_version=$(cat build/release/VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Package release artifacts
+        if: steps.diff.outputs.changed == 'true' || inputs.force_publish
+        run: |
+          cd build/release
+          zip -r ../../database-full.zip database/
+          zip -r ../../assets-full.zip assets/
+          cd ../..
+          sha256sum database-full.zip assets-full.zip > checksums.txt
+
+      - name: Upload build artifacts (for the publish job)
+        if: steps.diff.outputs.changed == 'true' || inputs.force_publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-payload
+          path: |
+            database-full.zip
+            assets-full.zip
+            checksums.txt
+            build/release/version.json
+            build/release/CHANGELOG.md
+          retention-days: 14
+
+  # ------------------------------------------------------------------
+  # Gate: nothing publishes without a human looking at the diff first.
+  # This job requires a reviewer approval on the "production-database"
+  # GitHub Environment before it's allowed to run — configure that
+  # environment once in repo Settings > Environments, add yourself (or
+  # whoever owns content decisions) as a required reviewer. GitHub will
+  # then pause the workflow here and email/notify the reviewer with a
+  # link to approve or reject, showing the diff-summary artifact below.
+  # ------------------------------------------------------------------
+  await-review:
+    needs: scrape-and-build
+    if: needs.scrape-and-build.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    environment: production-database   # <-- the approval gate lives here
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-payload
+
+      - name: Surface the diff for the reviewer
+        run: |
+          echo "## What changed in this update" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          cat build/release/CHANGELOG.md >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Review this summary, then approve or reject the pending" >> "$GITHUB_STEP_SUMMARY"
+          echo "deployment on this job to publish (or discard) the release." >> "$GITHUB_STEP_SUMMARY"
+          # This job intentionally does nothing else — its only purpose is to
+          # sit behind the environment's required-reviewer gate. Once approved,
+          # the workflow proceeds to publish-release below with the same artifact.
+
+  publish-release:
+    needs: [scrape-and-build, await-review]
+    if: needs.scrape-and-build.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-payload
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ needs.scrape-and-build.outputs.new_version }}"
+          name: "Database v${{ needs.scrape-and-build.outputs.new_version }}"
+          body_path: build/release/CHANGELOG.md
+          files: |
+            database-full.zip
+            assets-full.zip
+            checksums.txt
+            build/release/version.json
+
+      - name: Update "latest" pointer used by the Android app
+        run: |
+          # Publishes a stable-URL copy of version.json (e.g. via a
+          # dedicated 'latest' branch or GitHub Pages) so the app never
+          # needs to know the newest tag name in advance. Only reachable
+          # after the reviewer approval above, so the Android app never
+          # sees an update that wasn't explicitly signed off.
+          echo "TODO (Phase 4 hardening): push version.json to gh-pages / latest branch"
