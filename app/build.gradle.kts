@@ -44,6 +44,16 @@ android {
     }
 
     signingConfigs {
+        create("persistentDebug") {
+            val storePath = System.getenv("ANDROID_TEST_KEYSTORE_PATH")
+            if (!storePath.isNullOrBlank()) {
+                storeFile = file(storePath)
+                storePassword = System.getenv("TEST_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("TEST_KEY_ALIAS")
+                keyPassword = System.getenv("TEST_KEY_PASSWORD")
+            }
+        }
+
         create("release") {
             val storePath = System.getenv("ANDROID_KEYSTORE_PATH")
             if (!storePath.isNullOrBlank()) {
@@ -59,6 +69,9 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            if (!System.getenv("ANDROID_TEST_KEYSTORE_PATH").isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("persistentDebug")
+            }
         }
         release {
             isMinifyEnabled = true
