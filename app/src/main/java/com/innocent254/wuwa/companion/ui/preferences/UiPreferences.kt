@@ -18,29 +18,34 @@ enum class ImageMode {
 }
 
 class UiPreferences(context: Context) {
-    private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    private val preferences =
+        context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
-    var themeMode by mutableStateOf(
+    private var _themeMode by mutableStateOf(
         preferences.getString(KEY_THEME_MODE, null)
             ?.let { stored -> ThemeMode.entries.firstOrNull { it.name == stored } }
             ?: ThemeMode.SYSTEM,
     )
-        private set
 
-    var imageMode by mutableStateOf(
+    val themeMode: ThemeMode
+        get() = _themeMode
+
+    private var _imageMode by mutableStateOf(
         preferences.getString(KEY_IMAGE_MODE, null)
             ?.let { stored -> ImageMode.entries.firstOrNull { it.name == stored } }
             ?: ImageMode.AUTO,
     )
-        private set
+
+    val imageMode: ImageMode
+        get() = _imageMode
 
     fun setThemeMode(mode: ThemeMode) {
-        themeMode = mode
+        _themeMode = mode
         preferences.edit().putString(KEY_THEME_MODE, mode.name).apply()
     }
 
     fun setImageMode(mode: ImageMode) {
-        imageMode = mode
+        _imageMode = mode
         preferences.edit().putString(KEY_IMAGE_MODE, mode.name).apply()
     }
 
