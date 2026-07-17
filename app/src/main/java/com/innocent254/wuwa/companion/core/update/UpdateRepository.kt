@@ -1,6 +1,7 @@
 package com.innocent254.wuwa.companion.core.update
 
 import android.content.Context
+import android.os.Build
 import com.innocent254.wuwa.companion.BuildConfig
 import java.io.File
 import java.security.MessageDigest
@@ -13,7 +14,7 @@ import okhttp3.Request
 class UpdateRepository(
     private val context: Context,
     private val client: OkHttpClient = OkHttpClient(),
-    private val json: Json = Json { ignoreUnknownKeys = false },
+    private val json: Json = Json { ignoreUnknownKeys = true },
 ) {
     suspend fun check(
         currentAppVersionCode: Int,
@@ -28,18 +29,33 @@ class UpdateRepository(
             fetch<DataUpdateManifest>(BuildConfig.DATABASE_MANIFEST_URL)
         }.getOrNull()
 
+        val appProfileMatches = appManifest?.supportsImages?.let {
+            it == BuildConfig.SUPPORTS_IMAGES
+        } ?: true
+
         UpdateAvailability(
             app = appManifest,
             data = dataManifest,
             appUpdateAvailable = appManifest?.let {
-                it.available && it.versionCode > currentAppVersionCode
+                it.available &&
+                    appProfileMatches &&
+                    Build.VERSION.SDK_INT >= it.minimumAndroidSdk &&
+                    it.versionCode > currentAppVersionCode
             } == true,
-            databaseUpdateAvailable = dataManifest?.database?.let {
-                it.available && isNewer(it.version, currentDatabaseVersion)
+            databaseUpdateAvailable = dataManifest?.let { manifest ->
+                currentAppVersionCode >= manifest.minimumAppVersionCode &&
+                    manifest.database.available &&
+                    isNewer(manifest.database.version, currentDatabaseVersion)
             } == true,
-            assetUpdateAvailable = dataManifest?.assets?.let {
-                it.available && isNewer(it.version, currentAssetVersion)
+            databaseRequiresAppUpdate = dataManifest?.let { manifest ->
+                currentAppVersionCode < manifest.minimumAppVersionCode &&
+                    manifest.database.available &&
+                    isNewer(manifest.database.version, currentDatabaseVersion)
             } == true,
+            assetUpdateAvailable = BuildConfig.SUPPORTS_IMAGES &&
+                dataManifest?.assets?.let {
+                    it.available && isNewer(it.version, currentAssetVersion)
+                } == true,
         )
     }
 
@@ -47,17 +63,31 @@ class UpdateRepository(
         url: String,
         expectedSha256: String,
         fileName: String,
+        destinationDirectory: File = File(context.noBackupFilesDir, "update_staging"),
+        onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit = { _, _ -> },
     ): File = withContext(Dispatchers.IO) {
-        val directory = File(context.noBackupFilesDir, "update_staging").apply { mkdirs() }
-        val staging = File(directory, "$fileName.part")
-        val target = File(directory, fileName)
+        destinationDirectory.mkdirs()
+        val staging = File(destinationDirectory, "$fileName.part")
+        val target = File(destinationDirectory, fileName)
 
         val request = Request.Builder().url(url).get().build()
         client.newCall(request).execute().use { response ->
             check(response.isSuccessful) { "Download failed with HTTP ${response.code}" }
             val body = checkNotNull(response.body) { "Response body was empty." }
-            staging.outputStream().use { output ->
-                body.byteStream().use { input -> input.copyTo(output) }
+            val total = body.contentLength().coerceAtLeast(0L)
+            var downloaded = 0L
+
+            staging.outputStream().buffered().use { output ->
+                body.byteStream().buffered().use { input ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        output.write(buffer, 0, count)
+                        downloaded += count
+                        onProgress(downloaded, total)
+                    }
+                }
             }
         }
 

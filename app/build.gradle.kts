@@ -5,6 +5,14 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+val resolvedVersionName = providers.gradleProperty("VERSION_NAME").orNull ?: "0.2.0"
+val resolvedVersionCode = providers.gradleProperty("VERSION_CODE").orNull ?: "2"
+val resolvedSupportsImages = providers.gradleProperty("SUPPORTS_IMAGES")
+    .orNull
+    ?.toBooleanStrictOrNull()
+    ?: true
+val resolvedBuildProfile = if (resolvedSupportsImages) "images" else "minimal"
+
 android {
     namespace = "com.innocent254.wuwa.companion"
     compileSdk = 35
@@ -13,18 +21,25 @@ android {
         applicationId = "com.innocent254.wuwa.companion"
         minSdk = 26
         targetSdk = 35
-        versionCode = (providers.gradleProperty("VERSION_CODE").orNull ?: "1").toInt()
-        versionName = providers.gradleProperty("VERSION_NAME").orNull ?: "0.1.0"
+        versionCode = resolvedVersionCode.toInt()
+        versionName = resolvedVersionName
 
         buildConfigField(
             "String",
             "DATABASE_MANIFEST_URL",
-            "\"https://raw.githubusercontent.com/Innocent254/wuwa-database-server/main/public/latest/version.json\""
+            "\"https://raw.githubusercontent.com/Innocent254/wuwa-database-server/main/public/latest/version.json\"",
         )
         buildConfigField(
             "String",
             "APP_MANIFEST_URL",
-            "\"https://raw.githubusercontent.com/Innocent254/wuwa-companion-unofficial/main/updates/app-update.json\""
+            "\"https://raw.githubusercontent.com/Innocent254/wuwa-companion-unofficial/main/updates/app-update-$resolvedBuildProfile.json\"",
+        )
+        buildConfigField("boolean", "SUPPORTS_IMAGES", resolvedSupportsImages.toString())
+        buildConfigField("String", "BUILD_PROFILE", "\"$resolvedBuildProfile\"")
+        buildConfigField(
+            "String",
+            "CURRENT_RELEASE_NOTES_URL",
+            "\"https://github.com/Innocent254/wuwa-companion-unofficial/releases/tag/app-$resolvedBuildProfile-v$resolvedVersionName\"",
         )
     }
 
@@ -50,7 +65,7 @@ android {
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
             if (!System.getenv("ANDROID_KEYSTORE_PATH").isNullOrBlank()) {
                 signingConfig = signingConfigs.getByName("release")
@@ -76,6 +91,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)

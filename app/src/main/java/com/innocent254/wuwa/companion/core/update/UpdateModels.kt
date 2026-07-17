@@ -29,6 +29,7 @@ data class AppUpdateManifest(
     @SerialName("version_code") val versionCode: Int,
     @SerialName("version_name") val versionName: String,
     @SerialName("minimum_android_sdk") val minimumAndroidSdk: Int,
+    @SerialName("supports_images") val supportsImages: Boolean? = null,
     @SerialName("apk_url") val apkUrl: String? = null,
     @SerialName("apk_sha256") val apkSha256: String? = null,
     @SerialName("release_notes_url") val releaseNotesUrl: String? = null,
@@ -40,5 +41,38 @@ data class UpdateAvailability(
     val data: DataUpdateManifest?,
     val appUpdateAvailable: Boolean,
     val databaseUpdateAvailable: Boolean,
+    val databaseRequiresAppUpdate: Boolean,
     val assetUpdateAvailable: Boolean,
 )
+
+enum class UpdatePhase {
+    CHECKING,
+    UP_TO_DATE,
+    AVAILABLE,
+    DOWNLOADING,
+    READY_TO_INSTALL,
+    NOT_AVAILABLE,
+    ERROR,
+}
+
+data class UpdateItemUiState(
+    val installedVersion: String,
+    val availableVersion: String? = null,
+    val phase: UpdatePhase = UpdatePhase.CHECKING,
+    val progress: Float = 0f,
+    val message: String? = null,
+    val downloadedFilePath: String? = null,
+    val justUpdated: Boolean = false,
+)
+
+data class UpdateCenterUiState(
+    val database: UpdateItemUiState,
+    val app: UpdateItemUiState,
+    val assetVersion: String,
+    val supportsImages: Boolean,
+)
+
+sealed interface UpdateEvent {
+    data class ToastMessage(val text: String) : UpdateEvent
+    data class InstallApk(val absolutePath: String) : UpdateEvent
+}
