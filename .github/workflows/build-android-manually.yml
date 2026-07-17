@@ -51,6 +51,34 @@ jobs:
             echo "BUILD_PROFILE=minimal" >> "$GITHUB_ENV"
           fi
 
+      - name: Restore persistent test keystore
+        if: inputs.mode == 'build-only'
+        shell: bash
+        run: |
+          test -n "${{ secrets.ANDROID_TEST_KEYSTORE_BASE64 }}" || {
+            echo "ANDROID_TEST_KEYSTORE_BASE64 is not configured."
+            exit 1
+          }
+          test -n "${{ secrets.TEST_KEYSTORE_PASSWORD }}" || {
+            echo "TEST_KEYSTORE_PASSWORD is not configured."
+            exit 1
+          }
+          test -n "${{ secrets.TEST_KEY_ALIAS }}" || {
+            echo "TEST_KEY_ALIAS is not configured."
+            exit 1
+          }
+          test -n "${{ secrets.TEST_KEY_PASSWORD }}" || {
+            echo "TEST_KEY_PASSWORD is not configured."
+            exit 1
+          }
+
+          printf '%s' "${{ secrets.ANDROID_TEST_KEYSTORE_BASE64 }}" \
+            | base64 --decode > "$RUNNER_TEMP/test-debug.jks"
+          echo "ANDROID_TEST_KEYSTORE_PATH=$RUNNER_TEMP/test-debug.jks" >> "$GITHUB_ENV"
+          echo "TEST_KEYSTORE_PASSWORD=${{ secrets.TEST_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "TEST_KEY_ALIAS=${{ secrets.TEST_KEY_ALIAS }}" >> "$GITHUB_ENV"
+          echo "TEST_KEY_PASSWORD=${{ secrets.TEST_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+
       - name: Restore release keystore
         if: inputs.mode == 'publish'
         shell: bash
