@@ -4,13 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: "Version name, for example 0.1.0"
+        description: "Version name, for example 0.2.0"
         required: true
-        default: "0.1.0"
+        default: "0.2.0"
       version_code:
         description: "Monotonically increasing Android version code"
         required: true
-        default: "1"
+        default: "2"
+      supports_images:
+        description: "Include image-package support in this Android build"
+        required: true
+        type: boolean
+        default: true
       mode:
         description: "Build only, or publish a signed GitHub Release"
         required: true
@@ -37,6 +42,15 @@ jobs:
           java-version: "17"
           cache: gradle
 
+      - name: Resolve build profile
+        shell: bash
+        run: |
+          if [ "${{ inputs.supports_images }}" = "true" ]; then
+            echo "BUILD_PROFILE=images" >> "$GITHUB_ENV"
+          else
+            echo "BUILD_PROFILE=minimal" >> "$GITHUB_ENV"
+          fi
+
       - name: Restore release keystore
         if: inputs.mode == 'publish'
         shell: bash
@@ -60,38 +74,44 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_VERSION_NAME: ${{ inputs.version_name }}
           ORG_GRADLE_PROJECT_VERSION_CODE: ${{ inputs.version_code }}
+          ORG_GRADLE_PROJECT_SUPPORTS_IMAGES: ${{ inputs.supports_images }}
+        shell: bash
         run: |
           if [ "${{ inputs.mode }}" = "publish" ]; then
             gradle :app:assembleRelease
-            cp app/build/outputs/apk/release/app-release.apk WuWaCompanion-${{ inputs.version_name }}.apk
+            cp app/build/outputs/apk/release/app-release.apk \
+              "WuWaCompanion-${{ inputs.version_name }}-${BUILD_PROFILE}.apk"
           else
             gradle :app:assembleDebug
-            cp app/build/outputs/apk/debug/app-debug.apk WuWaCompanion-${{ inputs.version_name }}-debug.apk
+            cp app/build/outputs/apk/debug/app-debug.apk \
+              "WuWaCompanion-${{ inputs.version_name }}-${BUILD_PROFILE}-debug.apk"
           fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WuWaCompanion-${{ inputs.version_name }}
+          name: WuWaCompanion-${{ inputs.version_name }}-${{ inputs.supports_images && 'images' || 'minimal' }}
           path: WuWaCompanion-*.apk
           retention-days: 14
 
-      - name: Publish GitHub Release and app manifest
+      - name: Publish GitHub Release and profile manifest
         if: inputs.mode == 'publish'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          APK="WuWaCompanion-${{ inputs.version_name }}.apk"
+          APK="WuWaCompanion-${{ inputs.version_name }}-${BUILD_PROFILE}.apk"
           SHA=$(sha256sum "$APK" | cut -d' ' -f1)
-          TAG="app-v${{ inputs.version_name }}"
+          TAG="app-${BUILD_PROFILE}-v${{ inputs.version_name }}"
           URL="https://github.com/${{ github.repository }}/releases/download/$TAG/$APK"
+          MANIFEST="updates/app-update-${BUILD_PROFILE}.json"
 
-          cat > updates/app-update.json <<JSON
+          cat > "$MANIFEST" <<JSON
           {
             "version_code": ${{ inputs.version_code }},
             "version_name": "${{ inputs.version_name }}",
             "minimum_android_sdk": 26,
+            "supports_images": ${{ inputs.supports_images }},
             "apk_url": "$URL",
             "apk_sha256": "$SHA",
             "release_notes_url": "https://github.com/${{ github.repository }}/releases/tag/$TAG",
@@ -101,10 +121,10 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add updates/app-update.json
-          git commit -m "Publish app ${{ inputs.version_name }}"
+          git add "$MANIFEST"
+          git commit -m "Publish app ${{ inputs.version_name }} ($BUILD_PROFILE)"
           git push
 
           gh release create "$TAG" "$APK" \
-            --title "WuWa Companion ${{ inputs.version_name }}" \
+            --title "WuWa Companion ${{ inputs.version_name }} ($BUILD_PROFILE)" \
             --generate-notes
