@@ -1,0 +1,10 @@
+{
+  "version_code": 0,
+  "version_name": "0.0.0",
+  "minimum_android_sdk": 26,
+  "supports_images": true,
+  "apk_url": null,
+  "apk_sha256": null,
+  "release_notes_url": null,
+  "available": false
+}

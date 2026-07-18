@@ -5,13 +5,35 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-val resolvedVersionName = providers.gradleProperty("VERSION_NAME").orNull ?: "0.2.0"
-val resolvedVersionCode = providers.gradleProperty("VERSION_CODE").orNull ?: "2"
+val resolvedVersionName = providers.gradleProperty("VERSION_NAME").orNull ?: "0.2.2"
+val resolvedVersionCode = providers.gradleProperty("VERSION_CODE").orNull ?: "4"
 val resolvedSupportsImages = providers.gradleProperty("SUPPORTS_IMAGES")
     .orNull
     ?.toBooleanStrictOrNull()
     ?: true
 val resolvedBuildProfile = if (resolvedSupportsImages) "images" else "minimal"
+val resolvedReleaseChannel = providers.gradleProperty("RELEASE_CHANNEL")
+    .orNull
+    ?.lowercase()
+    ?.takeIf { it == "stable" || it == "prerelease" }
+    ?: "stable"
+
+val databaseManifestPath = when {
+    resolvedBuildProfile == "minimal" && resolvedReleaseChannel == "prerelease" ->
+        "public/prerelease/minimal/version.json"
+    resolvedBuildProfile == "minimal" ->
+        "public/stable/minimal/version.json"
+    resolvedReleaseChannel == "prerelease" ->
+        "public/prerelease/images/version.json"
+    else ->
+        "public/latest/version.json"
+}
+
+val appManifestName = if (resolvedReleaseChannel == "prerelease") {
+    "app-update-$resolvedBuildProfile-prerelease.json"
+} else {
+    "app-update-$resolvedBuildProfile.json"
+}
 
 android {
     namespace = "com.innocent254.wuwa.companion"
@@ -27,15 +49,16 @@ android {
         buildConfigField(
             "String",
             "DATABASE_MANIFEST_URL",
-            "\"https://raw.githubusercontent.com/Innocent254/wuwa-database-server/main/public/latest/version.json\"",
+            "\"https://raw.githubusercontent.com/Innocent254/wuwa-database-server/main/$databaseManifestPath\"",
         )
         buildConfigField(
             "String",
             "APP_MANIFEST_URL",
-            "\"https://raw.githubusercontent.com/Innocent254/wuwa-companion-unofficial/main/updates/app-update-$resolvedBuildProfile.json\"",
+            "\"https://raw.githubusercontent.com/Innocent254/wuwa-companion-unofficial/main/updates/$appManifestName\"",
         )
         buildConfigField("boolean", "SUPPORTS_IMAGES", resolvedSupportsImages.toString())
         buildConfigField("String", "BUILD_PROFILE", "\"$resolvedBuildProfile\"")
+        buildConfigField("String", "RELEASE_CHANNEL", "\"$resolvedReleaseChannel\"")
         buildConfigField(
             "String",
             "CURRENT_RELEASE_NOTES_URL",
