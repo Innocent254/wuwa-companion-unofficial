@@ -89,6 +89,7 @@ import com.innocent254.wuwa.companion.ui.model.AppDestination
 import com.innocent254.wuwa.companion.ui.model.CategoryUi
 import com.innocent254.wuwa.companion.ui.model.CompanionUiState
 import com.innocent254.wuwa.companion.ui.model.LibraryEntryUi
+import com.innocent254.wuwa.companion.ui.preferences.DataMode
 import com.innocent254.wuwa.companion.ui.preferences.ThemeMode
 import com.innocent254.wuwa.companion.ui.preferences.UiPreferences
 import java.io.File
@@ -299,13 +300,15 @@ fun CompanionRoot(
                 if (!preferences.onboardingComplete) {
                     FirstInstallScreen(
                         selectedTheme = preferences.themeMode,
-                        supportsImages = BuildConfig.SUPPORTS_IMAGES,
+                        selectedDataMode = preferences.dataMode,
                         onThemeSelected = preferences::setThemeMode,
+                        onDataModeSelected = preferences::setDataMode,
                         onContinue = {
                             preferences.completeOnboarding(
                                 currentVersionCode = BuildConfig.VERSION_CODE,
                                 currentVersionName = BuildConfig.VERSION_NAME,
                             )
+                            updateViewModel.onDataModeChanged(preferences.dataMode)
                         },
                     )
                 } else {
@@ -315,6 +318,7 @@ fun CompanionRoot(
                         preferences = preferences,
                         onDatabaseAction = updateViewModel::onDatabaseAction,
                         onAppAction = updateViewModel::onAppAction,
+                        onDataModeChanged = updateViewModel::onDataModeChanged,
                     )
 
                     if (preferences.shouldShowVersionInformation(BuildConfig.VERSION_CODE)) {
@@ -345,6 +349,7 @@ private fun MainCompanionShell(
     preferences: UiPreferences,
     onDatabaseAction: () -> Unit,
     onAppAction: () -> Unit,
+    onDataModeChanged: (DataMode) -> Unit,
 ) {
     val metrics = LocalResponsiveMetrics.current
     var selectedDestination by rememberSaveable { mutableStateOf(AppDestination.HOME.name) }
@@ -379,6 +384,7 @@ private fun MainCompanionShell(
                 onDestinationSelected = { selectedDestination = it.name },
                 onDatabaseAction = onDatabaseAction,
                 onAppAction = onAppAction,
+                onDataModeChanged = onDataModeChanged,
                 onBack = { selectedDestination = AppDestination.HOME.name },
                 modifier = Modifier.weight(1f),
             )
@@ -402,6 +408,7 @@ private fun MainCompanionShell(
                 onDestinationSelected = { selectedDestination = it.name },
                 onDatabaseAction = onDatabaseAction,
                 onAppAction = onAppAction,
+                onDataModeChanged = onDataModeChanged,
                 onBack = { selectedDestination = AppDestination.HOME.name },
                 modifier = Modifier
                     .fillMaxSize()
@@ -414,8 +421,9 @@ private fun MainCompanionShell(
 @Composable
 private fun FirstInstallScreen(
     selectedTheme: ThemeMode,
-    supportsImages: Boolean,
+    selectedDataMode: DataMode,
     onThemeSelected: (ThemeMode) -> Unit,
+    onDataModeSelected: (DataMode) -> Unit,
     onContinue: () -> Unit,
 ) {
     val metrics = LocalResponsiveMetrics.current
@@ -475,8 +483,9 @@ private fun FirstInstallScreen(
             }
 
             item {
-                BuildProfileCard(
-                    supportsImages = supportsImages,
+                DataModePanel(
+                    selectedMode = selectedDataMode,
+                    onModeSelected = onDataModeSelected,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = metrics.itemSpacing),
@@ -663,6 +672,7 @@ private fun DestinationContent(
     onDestinationSelected: (AppDestination) -> Unit,
     onDatabaseAction: () -> Unit,
     onAppAction: () -> Unit,
+    onDataModeChanged: (DataMode) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -670,18 +680,23 @@ private fun DestinationContent(
         AppDestination.HOME -> HomeScreen(
             uiState = uiState,
             installedDatabaseVersion = updateState.database.installedVersion,
+            dataMode = preferences.dataMode,
+            imagesInstalled = updateState.assetVersion != "0.0.0",
             onCategorySelected = { onDestinationSelected(AppDestination.LIBRARY) },
             modifier = modifier,
         )
 
         AppDestination.LIBRARY -> LibraryScreen(
             uiState = uiState,
+            dataMode = preferences.dataMode,
+            imagesInstalled = updateState.assetVersion != "0.0.0",
             onBack = onBack,
             modifier = modifier,
         )
 
         AppDestination.UPDATES -> UpdatesScreen(
             updateState = updateState,
+            dataMode = preferences.dataMode,
             onDatabaseAction = onDatabaseAction,
             onAppAction = onAppAction,
             onBack = onBack,
@@ -691,6 +706,7 @@ private fun DestinationContent(
         AppDestination.SETTINGS -> SettingsScreen(
             installedDatabaseVersion = updateState.database.installedVersion,
             preferences = preferences,
+            onDataModeChanged = onDataModeChanged,
             onBack = onBack,
             modifier = modifier,
         )
@@ -719,11 +735,13 @@ private fun ResponsiveContentFrame(
 private fun HomeScreen(
     uiState: CompanionUiState,
     installedDatabaseVersion: String,
+    dataMode: DataMode,
+    imagesInstalled: Boolean,
     onCategorySelected: (CategoryUi) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val metrics = LocalResponsiveMetrics.current
-    val showImages = BuildConfig.SUPPORTS_IMAGES && uiState.imageAssetsAvailable
+    val showImages = dataMode == DataMode.IMAGES && imagesInstalled
 
     ResponsiveContentFrame(modifier) { contentModifier ->
         LazyColumn(
@@ -746,7 +764,8 @@ private fun HomeScreen(
             item {
                 HeroCard(
                     databaseVersion = installedDatabaseVersion,
-                    supportsImages = BuildConfig.SUPPORTS_IMAGES,
+                    dataMode = dataMode,
+                    imagesInstalled = imagesInstalled,
                 )
             }
 
@@ -869,13 +888,15 @@ private fun ResponsiveEntryCollection(
 @Composable
 private fun LibraryScreen(
     uiState: CompanionUiState,
+    dataMode: DataMode,
+    imagesInstalled: Boolean,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val metrics = LocalResponsiveMetrics.current
     var query by rememberSaveable { mutableStateOf("") }
     val context = LocalContext.current
-    val showImages = BuildConfig.SUPPORTS_IMAGES && uiState.imageAssetsAvailable
+    val showImages = dataMode == DataMode.IMAGES && imagesInstalled
     val visibleEntries = uiState.entries.filter { entry ->
         query.isBlank() ||
             context.getString(entry.nameRes).contains(query, ignoreCase = true) ||
@@ -956,6 +977,7 @@ private fun LibraryScreen(
 @Composable
 private fun UpdatesScreen(
     updateState: UpdateCenterUiState,
+    dataMode: DataMode,
     onDatabaseAction: () -> Unit,
     onAppAction: () -> Unit,
     onBack: () -> Unit,
@@ -986,7 +1008,7 @@ private fun UpdatesScreen(
                     first = {
                         DatabaseUpdateCard(
                             state = updateState.database,
-                            supportsImages = updateState.supportsImages,
+                            dataMode = dataMode,
                             assetVersion = updateState.assetVersion,
                             onAction = onDatabaseAction,
                             modifier = Modifier.fillMaxWidth(),
@@ -1009,6 +1031,7 @@ private fun UpdatesScreen(
 private fun SettingsScreen(
     installedDatabaseVersion: String,
     preferences: UiPreferences,
+    onDataModeChanged: (DataMode) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1055,8 +1078,12 @@ private fun SettingsScreen(
                         }
                     },
                     second = {
-                        BuildProfileCard(
-                            supportsImages = BuildConfig.SUPPORTS_IMAGES,
+                        DataModePanel(
+                            selectedMode = preferences.dataMode,
+                            onModeSelected = { mode ->
+                                preferences.setDataMode(mode)
+                                onDataModeChanged(mode)
+                            },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     },
@@ -1129,7 +1156,7 @@ private fun ResponsivePair(
 @Composable
 private fun DatabaseUpdateCard(
     state: UpdateItemUiState,
-    supportsImages: Boolean,
+    dataMode: DataMode,
     assetVersion: String,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1146,10 +1173,10 @@ private fun DatabaseUpdateCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = if (supportsImages) {
-                stringResource(R.string.database_images_build_note, assetVersion)
+            text = if (dataMode == DataMode.IMAGES) {
+                stringResource(R.string.database_images_mode_note, assetVersion)
             } else {
-                stringResource(R.string.database_minimal_build_note)
+                stringResource(R.string.database_minimal_mode_note)
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1408,36 +1435,30 @@ private fun DownloadProgress(progress: Float, label: String) {
 }
 
 @Composable
-private fun BuildProfileCard(
-    supportsImages: Boolean,
+private fun DataModePanel(
+    selectedMode: DataMode,
+    onModeSelected: (DataMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     SettingsPanel(
-        title = stringResource(R.string.build_profile_title),
-        description = if (supportsImages) {
-            stringResource(R.string.build_profile_images_description)
-        } else {
-            stringResource(R.string.build_profile_minimal_description)
-        },
+        title = stringResource(R.string.data_mode_title),
+        description = stringResource(R.string.data_mode_description),
         modifier = modifier,
     ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
-        ) {
-            Text(
-                text = if (supportsImages) {
-                    stringResource(R.string.build_profile_images)
-                } else {
-                    stringResource(R.string.build_profile_minimal)
-                },
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-            )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(DataMode.entries) { mode ->
+                FilterChip(
+                    selected = selectedMode == mode,
+                    onClick = { onModeSelected(mode) },
+                    label = { Text(dataModeLabel(mode)) },
+                )
+            }
         }
         Text(
-            text = stringResource(R.string.build_profile_locked_note),
+            text = when (selectedMode) {
+                DataMode.MINIMALIST -> stringResource(R.string.data_mode_minimalist_description)
+                DataMode.IMAGES -> stringResource(R.string.data_mode_images_description)
+            },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1506,7 +1527,11 @@ private fun ScreenHeader(
 }
 
 @Composable
-private fun HeroCard(databaseVersion: String, supportsImages: Boolean) {
+private fun HeroCard(
+    databaseVersion: String,
+    dataMode: DataMode,
+    imagesInstalled: Boolean,
+) {
     val metrics = LocalResponsiveMetrics.current
     val gradient = Brush.linearGradient(
         listOf(
@@ -1547,10 +1572,10 @@ private fun HeroCard(databaseVersion: String, supportsImages: Boolean) {
                 text = stringResource(
                     R.string.hero_status,
                     databaseVersion,
-                    if (supportsImages) {
-                        stringResource(R.string.build_profile_images)
-                    } else {
-                        stringResource(R.string.build_profile_minimal)
+                    when {
+                        dataMode == DataMode.MINIMALIST -> stringResource(R.string.data_mode_minimalist)
+                        imagesInstalled -> stringResource(R.string.images_ready)
+                        else -> stringResource(R.string.images_not_installed)
                     },
                 ),
                 style = MaterialTheme.typography.bodyMedium,
@@ -1913,6 +1938,12 @@ private fun TooltipAction(
             }
         }
     }
+}
+
+@Composable
+private fun dataModeLabel(mode: DataMode): String = when (mode) {
+    DataMode.MINIMALIST -> stringResource(R.string.data_mode_minimalist)
+    DataMode.IMAGES -> stringResource(R.string.data_mode_images)
 }
 
 @Composable

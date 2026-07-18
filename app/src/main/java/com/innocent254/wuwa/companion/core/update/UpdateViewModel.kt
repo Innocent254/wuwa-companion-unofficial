@@ -2,10 +2,14 @@ package com.innocent254.wuwa.companion.core.update
 
 import android.app.Application
 import android.content.Context
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.innocent254.wuwa.companion.BuildConfig
 import com.innocent254.wuwa.companion.R
 import com.innocent254.wuwa.companion.core.security.SecureAssetImporter
 import com.innocent254.wuwa.companion.core.security.SecureAssetStore
+import com.innocent254.wuwa.companion.ui.preferences.DataMode
+import com.innocent254.wuwa.companion.ui.preferences.UiPreferences
 import java.io.File
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,13 +18,15 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
 
 class UpdateViewModel(application: Application) : AndroidViewModel(application) {
     private val appContext = application.applicationContext
     private val versionPreferences = appContext.getSharedPreferences(
         VERSION_PREFERENCES,
+        Context.MODE_PRIVATE,
+    )
+    private val userPreferences = appContext.getSharedPreferences(
+        UiPreferences.PREFERENCES_NAME,
         Context.MODE_PRIVATE,
     )
     private val repository = UpdateRepository(appContext)
@@ -31,6 +37,11 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
 
     private val installedAssetVersion: String
         get() = versionPreferences.getString(KEY_ASSET_VERSION, DEFAULT_VERSION) ?: DEFAULT_VERSION
+
+    private val selectedDataMode: DataMode
+        get() = userPreferences.getString(UiPreferences.KEY_DATA_MODE, null)
+            ?.let { stored -> DataMode.entries.firstOrNull { it.name == stored } }
+            ?: DataMode.MINIMALIST
 
     private val _uiState = MutableStateFlow(
         UpdateCenterUiState(
@@ -43,7 +54,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                 phase = UpdatePhase.CHECKING,
             ),
             assetVersion = installedAssetVersion,
-            supportsImages = BuildConfig.SUPPORTS_IMAGES,
+            supportsImages = true,
         ),
     )
     val uiState = _uiState.asStateFlow()
@@ -63,6 +74,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
         if (databaseJob?.isActive == true || appJob?.isActive == true) return
 
         viewModelScope.launch {
+            val mode = selectedDataMode
             _uiState.update { current ->
                 current.copy(
                     database = current.database.copy(
@@ -83,24 +95,47 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                 currentAssetVersion = installedAssetVersion,
             )
             latestAvailability = availability
-            applyAvailability(availability)
+            applyAvailability(availability, mode)
 
-            if (!silent && availability.data != null && !availability.databaseUpdateAvailable) {
-                if (availability.databaseRequiresAppUpdate) {
-                    emitToast(appContext.getString(R.string.toast_database_requires_app_update))
-                } else {
-                    emitToast(appContext.getString(R.string.toast_database_current))
+            val selectedUpdateAvailable = availability.databaseUpdateAvailable ||
+                (mode == DataMode.IMAGES && availability.assetUpdateAvailable)
+            if (!silent && availability.data != null && !selectedUpdateAvailable) {
+                when {
+                    availability.databaseRequiresAppUpdate -> {
+                        emitToast(appContext.getString(R.string.toast_database_requires_app_update))
+                    }
+
+                    mode == DataMode.IMAGES && availability.data.assets.available.not() -> {
+                        emitToast(appContext.getString(R.string.toast_images_not_published))
+                    }
+
+                    else -> emitToast(appContext.getString(R.string.toast_database_current))
                 }
             }
         }
+    }
+
+    fun onDataModeChanged(mode: DataMode) {
+        if (mode == DataMode.MINIMALIST) {
+            latestAvailability?.let { applyAvailability(it, mode) }
+            emitToast(appContext.getString(R.string.toast_minimalist_mode_selected))
+            return
+        }
+
+        emitToast(appContext.getString(R.string.toast_images_mode_selected))
+        onDatabaseAction()
     }
 
     fun onDatabaseAction() {
         if (databaseJob?.isActive == true) return
 
         databaseJob = viewModelScope.launch {
+            val mode = selectedDataMode
             var availability = latestAvailability
-            if (availability?.databaseUpdateAvailable != true) {
+            var databaseNeeded = availability?.databaseUpdateAvailable == true
+            var assetsNeeded = mode == DataMode.IMAGES && availability?.assetUpdateAvailable == true
+
+            if (!databaseNeeded && !assetsNeeded) {
                 _uiState.update { current ->
                     current.copy(
                         database = current.database.copy(
@@ -131,18 +166,38 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                     return@launch
                 }
 
-                if (!availability.databaseUpdateAvailable) {
-                    applyAvailability(availability)
-                    if (availability.databaseRequiresAppUpdate) {
-                        emitToast(appContext.getString(R.string.toast_database_requires_app_update))
-                    } else {
-                        emitToast(appContext.getString(R.string.toast_database_current))
+                databaseNeeded = availability.databaseUpdateAvailable
+                assetsNeeded = mode == DataMode.IMAGES && availability.assetUpdateAvailable
+
+                if (!databaseNeeded && !assetsNeeded) {
+                    applyAvailability(availability, mode)
+                    when {
+                        availability.databaseRequiresAppUpdate -> {
+                            emitToast(appContext.getString(R.string.toast_database_requires_app_update))
+                        }
+
+                        mode == DataMode.IMAGES && availability.data.assets.available.not() -> {
+                            emitToast(appContext.getString(R.string.toast_images_not_published))
+                        }
+
+                        else -> emitToast(appContext.getString(R.string.toast_database_current))
                     }
                     return@launch
                 }
             }
 
-            installDatabaseUpdate(checkNotNull(availability))
+            val resolved = checkNotNull(availability)
+            if (databaseNeeded) {
+                installDatabaseUpdate(
+                    availability = resolved,
+                    includeAssets = mode == DataMode.IMAGES,
+                )
+            } else if (assetsNeeded) {
+                installAssetUpdate(
+                    availability = resolved,
+                    showSuccessToast = true,
+                )
+            }
         }
     }
 
@@ -177,7 +232,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                 repository.downloadVerified(
                     url = apkUrl,
                     expectedSha256 = apkSha256,
-                    fileName = "WuWaCompanion-${manifest.versionName}-${BuildConfig.BUILD_PROFILE}.apk",
+                    fileName = "WuWaCompanion-${manifest.versionName}.apk",
                     destinationDirectory = File(appContext.cacheDir, "apk_updates"),
                     onProgress = { downloaded, total ->
                         val progress = if (total > 0L) downloaded.toFloat() / total.toFloat() else 0f
@@ -211,7 +266,10 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private suspend fun installDatabaseUpdate(availability: UpdateAvailability) {
+    private suspend fun installDatabaseUpdate(
+        availability: UpdateAvailability,
+        includeAssets: Boolean,
+    ) {
         val databasePackage = availability.data?.database ?: return
         val databaseUrl = databasePackage.url
         val databaseSha = databasePackage.sha256
@@ -277,46 +335,13 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
             .apply()
 
         var assetVersion = installedAssetVersion
-        if (BuildConfig.SUPPORTS_IMAGES && availability.assetUpdateAvailable) {
-            val assetPackage = availability.data?.assets
-            val assetUrl = assetPackage?.url
-            val assetSha256 = assetPackage?.sha256
-            if (assetPackage != null && assetUrl != null && assetSha256 != null) {
-                _uiState.update { current ->
-                    current.copy(
-                        database = current.database.copy(
-                            progress = 0f,
-                            message = appContext.getString(R.string.status_downloading_images),
-                        ),
-                    )
-                }
-
-                runCatching {
-                    val packageFile = repository.downloadVerified(
-                        url = assetUrl,
-                        expectedSha256 = assetSha256,
-                        fileName = "assets-${assetPackage.version}.wupack",
-                        onProgress = { downloaded, total ->
-                            val progress = if (total > 0L) downloaded.toFloat() / total.toFloat() else 0f
-                            _uiState.update { current ->
-                                current.copy(
-                                    database = current.database.copy(
-                                        progress = progress.coerceIn(0f, 1f),
-                                    ),
-                                )
-                            }
-                        },
-                    )
-                    importer.importPackage(packageFile)
-                }.onSuccess {
-                    assetVersion = assetPackage.version
-                    versionPreferences.edit()
-                        .putString(KEY_ASSET_VERSION, assetPackage.version)
-                        .apply()
-                }.onFailure {
-                    emitToast(appContext.getString(R.string.toast_asset_update_failed))
-                }
-            }
+        if (includeAssets && availability.assetUpdateAvailable) {
+            val installed = installAssetUpdate(
+                availability = availability,
+                showSuccessToast = false,
+                finalizeDatabaseState = false,
+            )
+            if (installed) assetVersion = installedAssetVersion
         }
 
         _uiState.update { current ->
@@ -340,8 +365,109 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
-    private fun applyAvailability(availability: UpdateAvailability) {
+    private suspend fun installAssetUpdate(
+        availability: UpdateAvailability,
+        showSuccessToast: Boolean,
+        finalizeDatabaseState: Boolean = true,
+    ): Boolean {
+        val assetPackage = availability.data?.assets ?: return false
+        val assetUrl = assetPackage.url
+        val assetSha256 = assetPackage.sha256
+
+        if (!assetPackage.available || assetUrl.isNullOrBlank() || assetSha256.isNullOrBlank()) {
+            emitToast(appContext.getString(R.string.toast_images_not_published))
+            return false
+        }
+
         _uiState.update { current ->
+            current.copy(
+                database = current.database.copy(
+                    phase = UpdatePhase.DOWNLOADING,
+                    progress = 0f,
+                    availableVersion = assetPackage.version,
+                    message = appContext.getString(R.string.status_downloading_images),
+                ),
+            )
+        }
+
+        val result = runCatching {
+            val packageFile = repository.downloadVerified(
+                url = assetUrl,
+                expectedSha256 = assetSha256,
+                fileName = "assets-${assetPackage.version}.wupack",
+                onProgress = { downloaded, total ->
+                    val progress = if (total > 0L) downloaded.toFloat() / total.toFloat() else 0f
+                    _uiState.update { current ->
+                        current.copy(
+                            database = current.database.copy(
+                                progress = progress.coerceIn(0f, 1f),
+                            ),
+                        )
+                    }
+                },
+            )
+            importer.importPackage(packageFile)
+        }
+
+        if (result.isFailure) {
+            _uiState.update { current ->
+                current.copy(
+                    database = current.database.copy(
+                        phase = UpdatePhase.ERROR,
+                        message = appContext.getString(R.string.status_download_failed),
+                    ),
+                )
+            }
+            emitToast(appContext.getString(R.string.toast_asset_update_failed))
+            return false
+        }
+
+        versionPreferences.edit()
+            .putString(KEY_ASSET_VERSION, assetPackage.version)
+            .apply()
+
+        _uiState.update { current ->
+            current.copy(
+                database = if (finalizeDatabaseState) {
+                    current.database.copy(
+                        installedVersion = installedDatabaseVersion,
+                        availableVersion = null,
+                        phase = UpdatePhase.UP_TO_DATE,
+                        progress = 1f,
+                        message = null,
+                        justUpdated = true,
+                    )
+                } else {
+                    current.database
+                },
+                assetVersion = assetPackage.version,
+            )
+        }
+
+        if (showSuccessToast) {
+            emitToast(
+                appContext.getString(
+                    R.string.toast_images_updated,
+                    assetPackage.version,
+                ),
+            )
+        }
+        return true
+    }
+
+    private fun applyAvailability(
+        availability: UpdateAvailability,
+        mode: DataMode,
+    ) {
+        _uiState.update { current ->
+            val selectedUpdateAvailable = availability.databaseUpdateAvailable ||
+                (mode == DataMode.IMAGES && availability.assetUpdateAvailable)
+            val selectedAvailableVersion = when {
+                availability.databaseUpdateAvailable -> availability.data?.database?.version
+                mode == DataMode.IMAGES && availability.assetUpdateAvailable -> availability.data?.assets?.version
+                else -> null
+            }
+
             val databaseState = when {
                 availability.data == null -> current.database.copy(
                     phase = UpdatePhase.ERROR,
@@ -350,23 +476,23 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
 
                 availability.databaseRequiresAppUpdate -> current.database.copy(
                     installedVersion = installedDatabaseVersion,
-                    availableVersion = availability.data?.database?.version,
+                    availableVersion = availability.data.database.version,
                     phase = UpdatePhase.ERROR,
                     progress = 0f,
                     message = appContext.getString(R.string.status_app_update_required),
                     justUpdated = false,
                 )
 
-                availability.databaseUpdateAvailable -> current.database.copy(
+                selectedUpdateAvailable -> current.database.copy(
                     installedVersion = installedDatabaseVersion,
-                    availableVersion = availability.data?.database?.version,
+                    availableVersion = selectedAvailableVersion,
                     phase = UpdatePhase.AVAILABLE,
                     progress = 0f,
                     message = null,
                     justUpdated = false,
                 )
 
-                installedDatabaseVersion == DEFAULT_VERSION && availability.data?.database?.available == false ->
+                installedDatabaseVersion == DEFAULT_VERSION && availability.data.database.available.not() ->
                     current.database.copy(
                         installedVersion = DEFAULT_VERSION,
                         availableVersion = null,
@@ -393,7 +519,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
 
                 availability.appUpdateAvailable -> current.app.copy(
                     installedVersion = BuildConfig.VERSION_NAME,
-                    availableVersion = availability.app?.versionName,
+                    availableVersion = availability.app.versionName,
                     phase = UpdatePhase.AVAILABLE,
                     progress = 0f,
                     message = null,
@@ -412,6 +538,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                 database = databaseState,
                 app = appState,
                 assetVersion = installedAssetVersion,
+                supportsImages = true,
             )
         }
     }

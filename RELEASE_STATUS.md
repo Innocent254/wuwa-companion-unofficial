@@ -1,4 +1,5 @@
-# Minimalist release status
+# Universal release status
 
-The automatic status workflow will replace this file after the patch is committed.
-The expected first synchronized visible version is **0.3.0**, based on the current 0.2.2 development baseline.
+The status has not been calculated yet. Run **Refresh universal release status** after uploading this patch.
+
+The next release workflow will build one universal APK. During first launch, the user chooses **Minimalist** or **Images** data mode independently from the light/dark theme.

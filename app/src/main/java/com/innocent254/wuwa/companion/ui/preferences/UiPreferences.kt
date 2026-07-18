@@ -5,7 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.innocent254.wuwa.companion.BuildConfig
 
 enum class ThemeMode {
     SYSTEM,
@@ -13,10 +12,12 @@ enum class ThemeMode {
     DARK,
 }
 
-/**
- * Compatibility type for the previous UI foundation. Image behavior is now
- * fixed by BuildConfig.SUPPORTS_IMAGES and is no longer user-selectable.
- */
+enum class DataMode {
+    MINIMALIST,
+    IMAGES,
+}
+
+/** Compatibility type retained for the superseded UI file. */
 enum class ImageMode {
     AUTO,
     SHOW,
@@ -40,6 +41,15 @@ class UiPreferences(context: Context) {
     val themeMode: ThemeMode
         get() = _themeMode
 
+    private var _dataMode by mutableStateOf(
+        preferences.getString(KEY_DATA_MODE, null)
+            ?.let { stored -> DataMode.entries.firstOrNull { it.name == stored } }
+            ?: DataMode.MINIMALIST,
+    )
+
+    val dataMode: DataMode
+        get() = _dataMode
+
     private var _onboardingComplete by mutableStateOf(
         preferences.getBoolean(KEY_ONBOARDING_COMPLETE, !isFreshInstall),
     )
@@ -58,21 +68,34 @@ class UiPreferences(context: Context) {
     val previousVersionName: String?
         get() = _lastSeenVersionName
 
+    /** The universal APK always understands optional image packages. */
     val buildSupportsImages: Boolean
-        get() = BuildConfig.SUPPORTS_IMAGES
+        get() = true
 
     /** Compatibility getter used only by the superseded UI file. */
     val imageMode: ImageMode
-        get() = if (BuildConfig.SUPPORTS_IMAGES) ImageMode.SHOW else ImageMode.HIDE
+        get() = if (dataMode == DataMode.IMAGES) ImageMode.SHOW else ImageMode.HIDE
 
     fun setThemeMode(mode: ThemeMode) {
         _themeMode = mode
         preferences.edit().putString(KEY_THEME_MODE, mode.name).apply()
     }
 
-    /** Image selection is intentionally disabled; the developer chooses it at build time. */
-    @Deprecated("Image support is selected during the GitHub Actions build.")
-    fun setImageMode(@Suppress("UNUSED_PARAMETER") mode: ImageMode) = Unit
+    fun setDataMode(mode: DataMode) {
+        _dataMode = mode
+        preferences.edit().putString(KEY_DATA_MODE, mode.name).apply()
+    }
+
+    /** Compatibility bridge used only by the superseded UI file. */
+    fun setImageMode(mode: ImageMode) {
+        setDataMode(
+            when (mode) {
+                ImageMode.SHOW -> DataMode.IMAGES
+                ImageMode.AUTO,
+                ImageMode.HIDE -> DataMode.MINIMALIST
+            },
+        )
+    }
 
     fun completeOnboarding(currentVersionCode: Int, currentVersionName: String) {
         _onboardingComplete = true
@@ -101,7 +124,9 @@ class UiPreferences(context: Context) {
     }
 
     companion object {
-        private const val PREFERENCES_NAME = "ui_preferences"
+        const val PREFERENCES_NAME = "ui_preferences"
+        const val KEY_DATA_MODE = "data_mode"
+
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
         private const val KEY_LAST_SEEN_VERSION_CODE = "last_seen_version_code"

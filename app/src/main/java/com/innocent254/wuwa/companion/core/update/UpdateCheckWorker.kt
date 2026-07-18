@@ -12,7 +12,8 @@ import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.innocent254.wuwa.companion.BuildConfig
-import com.innocent254.wuwa.companion.R
+import com.innocent254.wuwa.companion.ui.preferences.DataMode
+import com.innocent254.wuwa.companion.ui.preferences.UiPreferences
 
 class UpdateCheckWorker(
     appContext: Context,
@@ -20,12 +21,19 @@ class UpdateCheckWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val preferences = applicationContext.getSharedPreferences(
+        val versionPreferences = applicationContext.getSharedPreferences(
             "update_versions",
             Context.MODE_PRIVATE,
         )
-        val databaseVersion = preferences.getString("database_version", "0.0.0") ?: "0.0.0"
-        val assetVersion = preferences.getString("asset_version", "0.0.0") ?: "0.0.0"
+        val databaseVersion = versionPreferences.getString("database_version", "0.0.0") ?: "0.0.0"
+        val assetVersion = versionPreferences.getString("asset_version", "0.0.0") ?: "0.0.0"
+        val uiPreferences = applicationContext.getSharedPreferences(
+            UiPreferences.PREFERENCES_NAME,
+            Context.MODE_PRIVATE,
+        )
+        val dataMode = uiPreferences.getString(UiPreferences.KEY_DATA_MODE, null)
+            ?.let { stored -> DataMode.entries.firstOrNull { it.name == stored } }
+            ?: DataMode.MINIMALIST
 
         val availability = runCatching {
             UpdateRepository(applicationContext).check(
@@ -35,17 +43,24 @@ class UpdateCheckWorker(
             )
         }.getOrElse { return Result.retry() }
 
+        val selectedAssetUpdate = dataMode == DataMode.IMAGES && availability.assetUpdateAvailable
         if (
             availability.appUpdateAvailable ||
             availability.databaseUpdateAvailable ||
-            availability.assetUpdateAvailable
+            selectedAssetUpdate
         ) {
-            showNotification(availability)
+            showNotification(
+                availability = availability,
+                includeAssets = selectedAssetUpdate,
+            )
         }
         return Result.success()
     }
 
-    private fun showNotification(availability: UpdateAvailability) {
+    private fun showNotification(
+        availability: UpdateAvailability,
+        includeAssets: Boolean,
+    ) {
         createChannel()
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -60,7 +75,7 @@ class UpdateCheckWorker(
         val parts = buildList {
             if (availability.appUpdateAvailable) add("app")
             if (availability.databaseUpdateAvailable) add("database")
-            if (availability.assetUpdateAvailable) add("assets")
+            if (includeAssets) add("images")
         }
 
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)

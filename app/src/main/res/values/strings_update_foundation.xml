@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="onboarding_title">Welcome to WuWa Companion</string>
-    <string name="onboarding_subtitle">Choose the appearance for your first install. You can change the theme later in Settings.</string>
-    <string name="onboarding_theme_description">Theme is a user preference and remains independent from the developer-selected build profile.</string>
+    <string name="onboarding_subtitle">Choose your theme and data mode. Both choices can be changed later in Settings.</string>
+    <string name="onboarding_theme_description">Theme controls appearance only and works independently from the selected data mode.</string>
     <string name="onboarding_continue">Finish setup</string>
-    <string name="tooltip_finish_setup">Save the selected theme and open WuWa Companion.</string>
+    <string name="tooltip_finish_setup">Save the selected theme and data mode, then open WuWa Companion.</string>
 
     <string name="updated_dialog_title">Updated to version %1$s</string>
     <string name="updated_dialog_body_generic">The application update was installed successfully. App and database versions continue to update independently.</string>
@@ -13,20 +13,20 @@
     <string name="action_release_notes">Release notes</string>
     <string name="action_back">Back</string>
 
-    <string name="updates_subtitle_new">The app checks the repository silently at startup. Database content and APK releases remain independent.</string>
-    <string name="settings_subtitle_new">Control appearance and review the fixed profile selected when this APK was built.</string>
+    <string name="updates_subtitle_new">The app checks the repository silently at startup. Text data and optional image assets are installed according to your selected data mode.</string>
+    <string name="settings_subtitle_new">Control appearance, choose how much data the app downloads, and review installed versions.</string>
 
-    <string name="build_profile_title">Build profile</string>
-    <string name="build_profile_images">Images supported</string>
-    <string name="build_profile_minimal">Minimal information</string>
-    <string name="build_profile_images_description">This APK can download and display image packages when the database server publishes them.</string>
-    <string name="build_profile_minimal_description">This APK ignores image packages and uses information-only layouts.</string>
-    <string name="build_profile_locked_note">The developer selected this profile during the GitHub Actions build. It cannot be changed inside the app.</string>
+    <string name="data_mode_title">Data mode</string>
+    <string name="data_mode_description">Choose between a lightweight information-only experience and richer cards with optional images.</string>
+    <string name="data_mode_minimalist">Minimalist</string>
+    <string name="data_mode_images">Images</string>
+    <string name="data_mode_minimalist_description">Downloads and displays the text database only. Previously downloaded images remain private but are hidden.</string>
+    <string name="data_mode_images_description">Downloads the text database and the optional verified image package when one is published.</string>
 
-    <string name="database_package_description_new">Checks the live database manifest, securely downloads a newer verified package, and installs it without replacing the APK.</string>
-    <string name="database_images_build_note">Image assets are handled automatically by this build. Installed image package: %1$s</string>
-    <string name="database_minimal_build_note">This minimalist build never downloads image assets.</string>
-    <string name="app_package_description_new">A download button appears only when the matching online build profile has a newer Android version code.</string>
+    <string name="database_package_description_new">Checks the live database manifest, securely downloads newer verified text data, and installs it without replacing the APK.</string>
+    <string name="database_images_mode_note">Images mode is selected. Installed image package: %1$s</string>
+    <string name="database_minimal_mode_note">Minimalist mode is selected. Optional image packages will not be downloaded.</string>
+    <string name="app_package_description_new">A download button appears only when the repository publishes an APK with a newer Android version code.</string>
 
     <string name="status_checking">Checking</string>
     <string name="status_downloading">Downloading</string>
@@ -42,24 +42,28 @@
     <string name="status_downloading_images">Downloading image assets</string>
     <string name="status_downloading_app">Downloading application update</string>
 
-    <string name="action_update_database">Update database</string>
-    <string name="action_retry_database">Retry database check</string>
+    <string name="action_update_database">Update selected data</string>
+    <string name="action_retry_database">Retry data check</string>
     <string name="action_download_app_version">Download version %1$s</string>
     <string name="action_install_app_update">Install update</string>
-    <string name="tooltip_update_database">Download, verify, and install the available database package.</string>
-    <string name="tooltip_check_database">Check the repository for a database version newer than the installed one.</string>
-    <string name="tooltip_retry_database">Retry the online database manifest check.</string>
-    <string name="tooltip_download_app">Download and verify the newer APK from this build profile’s release channel.</string>
+    <string name="tooltip_update_database">Download, verify, and install the text database plus images when Images mode is selected.</string>
+    <string name="tooltip_check_database">Check the repository for newer text data and, when selected, a newer image package.</string>
+    <string name="tooltip_retry_database">Retry the online data-manifest check.</string>
+    <string name="tooltip_download_app">Download and verify the newer universal APK from this release channel.</string>
     <string name="tooltip_install_app">Open Android’s package installer for the verified APK.</string>
     <string name="download_progress_label">%1$s · %2$d%%</string>
 
-    <string name="toast_database_current">No new database update was found.</string>
+    <string name="toast_database_current">No new selected data update was found.</string>
     <string name="toast_database_requires_app_update">A newer app version is required before this database package can be installed.</string>
-    <string name="toast_database_check_failed">The database update check could not be completed. Check your connection and try again.</string>
+    <string name="toast_database_check_failed">The data update check could not be completed. Check your connection and try again.</string>
     <string name="toast_database_update_failed">The database update could not be downloaded, verified, or installed.</string>
-    <string name="toast_asset_update_failed">The database was updated, but its optional image package could not be installed. It will be checked again later.</string>
+    <string name="toast_asset_update_failed">The text database is usable, but its optional image package could not be installed. It will be checked again later.</string>
     <string name="toast_app_download_failed">The application update could not be downloaded or verified.</string>
     <string name="toast_database_updated">Database version %1$s was installed successfully.</string>
+    <string name="toast_images_updated">Image package version %1$s was installed successfully.</string>
+    <string name="toast_images_not_published">No compatible image package is currently published. Text information remains available.</string>
+    <string name="toast_minimalist_mode_selected">Minimalist mode selected. The app will use text information only.</string>
+    <string name="toast_images_mode_selected">Images mode selected. Checking for the optional image package.</string>
     <string name="toast_downloaded_apk_missing">The downloaded APK is no longer available. Download the update again.</string>
     <string name="toast_allow_unknown_sources">Allow this app to install updates, then return to continue.</string>
     <string name="toast_cannot_open_link">No application could open this link.</string>

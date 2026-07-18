@@ -29,16 +29,11 @@ class UpdateRepository(
             fetch<DataUpdateManifest>(BuildConfig.DATABASE_MANIFEST_URL)
         }.getOrNull()
 
-        val appProfileMatches = appManifest?.supportsImages?.let {
-            it == BuildConfig.SUPPORTS_IMAGES
-        } ?: true
-
         UpdateAvailability(
             app = appManifest,
             data = dataManifest,
             appUpdateAvailable = appManifest?.let {
                 it.available &&
-                    appProfileMatches &&
                     Build.VERSION.SDK_INT >= it.minimumAndroidSdk &&
                     it.versionCode > currentAppVersionCode
             } == true,
@@ -52,8 +47,7 @@ class UpdateRepository(
                     manifest.database.available &&
                     isNewer(manifest.database.version, currentDatabaseVersion)
             } == true,
-            assetUpdateAvailable = BuildConfig.SUPPORTS_IMAGES &&
-                dataManifest?.assets?.let {
+            assetUpdateAvailable = dataManifest?.assets?.let {
                     it.available && isNewer(it.version, currentAssetVersion)
                 } == true,
         )

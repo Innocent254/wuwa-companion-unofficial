@@ -7,32 +7,22 @@ plugins {
 
 val resolvedVersionName = providers.gradleProperty("VERSION_NAME").orNull ?: "0.2.2"
 val resolvedVersionCode = providers.gradleProperty("VERSION_CODE").orNull ?: "4"
-val resolvedSupportsImages = providers.gradleProperty("SUPPORTS_IMAGES")
-    .orNull
-    ?.toBooleanStrictOrNull()
-    ?: true
-val resolvedBuildProfile = if (resolvedSupportsImages) "images" else "minimal"
 val resolvedReleaseChannel = providers.gradleProperty("RELEASE_CHANNEL")
     .orNull
     ?.lowercase()
     ?.takeIf { it == "stable" || it == "prerelease" }
     ?: "stable"
 
-val databaseManifestPath = when {
-    resolvedBuildProfile == "minimal" && resolvedReleaseChannel == "prerelease" ->
-        "public/prerelease/minimal/version.json"
-    resolvedBuildProfile == "minimal" ->
-        "public/stable/minimal/version.json"
-    resolvedReleaseChannel == "prerelease" ->
-        "public/prerelease/images/version.json"
-    else ->
-        "public/latest/version.json"
+val databaseManifestPath = if (resolvedReleaseChannel == "prerelease") {
+    "public/prerelease/version.json"
+} else {
+    "public/latest/version.json"
 }
 
 val appManifestName = if (resolvedReleaseChannel == "prerelease") {
-    "app-update-$resolvedBuildProfile-prerelease.json"
+    "app-update-prerelease.json"
 } else {
-    "app-update-$resolvedBuildProfile.json"
+    "app-update.json"
 }
 
 android {
@@ -56,13 +46,14 @@ android {
             "APP_MANIFEST_URL",
             "\"https://raw.githubusercontent.com/Innocent254/wuwa-companion-unofficial/main/updates/$appManifestName\"",
         )
-        buildConfigField("boolean", "SUPPORTS_IMAGES", resolvedSupportsImages.toString())
-        buildConfigField("String", "BUILD_PROFILE", "\"$resolvedBuildProfile\"")
+        // Compatibility fields retained while the codebase transitions from split APK profiles.
+        buildConfigField("boolean", "SUPPORTS_IMAGES", "true")
+        buildConfigField("String", "BUILD_PROFILE", "\"universal\"")
         buildConfigField("String", "RELEASE_CHANNEL", "\"$resolvedReleaseChannel\"")
         buildConfigField(
             "String",
             "CURRENT_RELEASE_NOTES_URL",
-            "\"https://github.com/Innocent254/wuwa-companion-unofficial/releases/tag/app-$resolvedBuildProfile-v$resolvedVersionName\"",
+            "\"https://github.com/Innocent254/wuwa-companion-unofficial/releases/tag/app-v$resolvedVersionName\"",
         )
     }
 
