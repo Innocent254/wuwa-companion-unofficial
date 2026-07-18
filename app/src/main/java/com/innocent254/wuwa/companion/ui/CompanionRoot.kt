@@ -16,19 +16,26 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -44,6 +51,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,6 +59,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +72,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
@@ -85,9 +95,173 @@ import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.delay
 
-private val PhonePadding = 18.dp
-private val WidePadding = 30.dp
 private val SuccessGreen = Color(0xFF2E7D32)
+
+private enum class ResponsiveClass {
+    NARROW,
+    COMPACT,
+    MEDIUM,
+    EXPANDED,
+}
+
+private data class ResponsiveMetrics(
+    val responsiveClass: ResponsiveClass,
+    val horizontalPadding: Dp,
+    val topPadding: Dp,
+    val sectionSpacing: Dp,
+    val itemSpacing: Dp,
+    val cardPadding: Dp,
+    val cardRadius: Dp,
+    val navigationBarHeight: Dp,
+    val navigationRailWidth: Dp,
+    val navigationIconSize: Dp,
+    val categoryIconSize: Dp,
+    val categoryCardWidth: Dp,
+    val categoryCardMinHeight: Dp,
+    val artworkSize: Dp,
+    val contentMaxWidth: Dp,
+    val gridMinWidth: Dp,
+    val categoryColumns: Int,
+    val useNavigationRail: Boolean,
+    val useGrid: Boolean,
+    val useTwoColumnCards: Boolean,
+    val showNavigationLabels: Boolean,
+)
+
+private val LocalResponsiveMetrics = staticCompositionLocalOf {
+    ResponsiveMetrics(
+        responsiveClass = ResponsiveClass.COMPACT,
+        horizontalPadding = 18.dp,
+        topPadding = 20.dp,
+        sectionSpacing = 18.dp,
+        itemSpacing = 12.dp,
+        cardPadding = 16.dp,
+        cardRadius = 22.dp,
+        navigationBarHeight = 70.dp,
+        navigationRailWidth = 92.dp,
+        navigationIconSize = 34.dp,
+        categoryIconSize = 38.dp,
+        categoryCardWidth = 148.dp,
+        categoryCardMinHeight = 126.dp,
+        artworkSize = 84.dp,
+        contentMaxWidth = 600.dp,
+        gridMinWidth = 260.dp,
+        categoryColumns = 1,
+        useNavigationRail = false,
+        useGrid = false,
+        useTwoColumnCards = false,
+        showNavigationLabels = true,
+    )
+}
+
+private fun resolveResponsiveMetrics(width: Dp, height: Dp): ResponsiveMetrics {
+    val landscape = width > height
+    val shortHeight = height < 480.dp
+
+    val base = when {
+        width < 340.dp -> ResponsiveMetrics(
+            responsiveClass = ResponsiveClass.NARROW,
+            horizontalPadding = 12.dp,
+            topPadding = if (shortHeight) 10.dp else 14.dp,
+            sectionSpacing = 14.dp,
+            itemSpacing = 10.dp,
+            cardPadding = 14.dp,
+            cardRadius = 18.dp,
+            navigationBarHeight = 62.dp,
+            navigationRailWidth = 82.dp,
+            navigationIconSize = 30.dp,
+            categoryIconSize = 34.dp,
+            categoryCardWidth = 132.dp,
+            categoryCardMinHeight = 116.dp,
+            artworkSize = 70.dp,
+            contentMaxWidth = 560.dp,
+            gridMinWidth = 240.dp,
+            categoryColumns = 1,
+            useNavigationRail = false,
+            useGrid = false,
+            useTwoColumnCards = false,
+            showNavigationLabels = false,
+        )
+
+        width < 600.dp -> ResponsiveMetrics(
+            responsiveClass = ResponsiveClass.COMPACT,
+            horizontalPadding = 18.dp,
+            topPadding = if (shortHeight) 12.dp else 20.dp,
+            sectionSpacing = 18.dp,
+            itemSpacing = 12.dp,
+            cardPadding = 16.dp,
+            cardRadius = 22.dp,
+            navigationBarHeight = 70.dp,
+            navigationRailWidth = 92.dp,
+            navigationIconSize = 34.dp,
+            categoryIconSize = 38.dp,
+            categoryCardWidth = 148.dp,
+            categoryCardMinHeight = 126.dp,
+            artworkSize = 84.dp,
+            contentMaxWidth = 600.dp,
+            gridMinWidth = 260.dp,
+            categoryColumns = 1,
+            useNavigationRail = false,
+            useGrid = false,
+            useTwoColumnCards = false,
+            showNavigationLabels = true,
+        )
+
+        width < 840.dp -> ResponsiveMetrics(
+            responsiveClass = ResponsiveClass.MEDIUM,
+            horizontalPadding = 24.dp,
+            topPadding = if (shortHeight) 14.dp else 24.dp,
+            sectionSpacing = 20.dp,
+            itemSpacing = 14.dp,
+            cardPadding = 20.dp,
+            cardRadius = 24.dp,
+            navigationBarHeight = 72.dp,
+            navigationRailWidth = 100.dp,
+            navigationIconSize = 38.dp,
+            categoryIconSize = 42.dp,
+            categoryCardWidth = 180.dp,
+            categoryCardMinHeight = 136.dp,
+            artworkSize = 96.dp,
+            contentMaxWidth = 920.dp,
+            gridMinWidth = 270.dp,
+            categoryColumns = 2,
+            useNavigationRail = width >= 720.dp || landscape,
+            useGrid = true,
+            useTwoColumnCards = true,
+            showNavigationLabels = true,
+        )
+
+        else -> ResponsiveMetrics(
+            responsiveClass = ResponsiveClass.EXPANDED,
+            horizontalPadding = 32.dp,
+            topPadding = if (shortHeight) 16.dp else 28.dp,
+            sectionSpacing = 24.dp,
+            itemSpacing = 16.dp,
+            cardPadding = 24.dp,
+            cardRadius = 28.dp,
+            navigationBarHeight = 76.dp,
+            navigationRailWidth = 112.dp,
+            navigationIconSize = 42.dp,
+            categoryIconSize = 46.dp,
+            categoryCardWidth = 200.dp,
+            categoryCardMinHeight = 144.dp,
+            artworkSize = 108.dp,
+            contentMaxWidth = 1200.dp,
+            gridMinWidth = 300.dp,
+            categoryColumns = 4,
+            useNavigationRail = true,
+            useGrid = true,
+            useTwoColumnCards = true,
+            showNavigationLabels = true,
+        )
+    }
+
+    return if (landscape && width >= 600.dp && !base.useNavigationRail) {
+        base.copy(useNavigationRail = true)
+    } else {
+        base
+    }
+}
 
 @Composable
 fun CompanionRoot(
@@ -112,37 +286,67 @@ fun CompanionRoot(
         }
     }
 
-    if (!preferences.onboardingComplete) {
-        FirstInstallScreen(
-            selectedTheme = preferences.themeMode,
-            supportsImages = BuildConfig.SUPPORTS_IMAGES,
-            onThemeSelected = preferences::setThemeMode,
-            onContinue = {
-                preferences.completeOnboarding(
-                    currentVersionCode = BuildConfig.VERSION_CODE,
-                    currentVersionName = BuildConfig.VERSION_NAME,
-                )
-            },
-        )
-        return
-    }
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val metrics = remember(maxWidth, maxHeight) {
+                resolveResponsiveMetrics(maxWidth, maxHeight)
+            }
 
-    if (preferences.shouldShowVersionInformation(BuildConfig.VERSION_CODE)) {
-        VersionInstalledDialog(
-            previousVersion = preferences.previousVersionName,
-            currentVersion = BuildConfig.VERSION_NAME,
-            onDismiss = {
-                preferences.acknowledgeVersion(
-                    currentVersionCode = BuildConfig.VERSION_CODE,
-                    currentVersionName = BuildConfig.VERSION_NAME,
-                )
-            },
-            onOpenReleaseNotes = {
-                onOpenUrl(BuildConfig.CURRENT_RELEASE_NOTES_URL)
-            },
-        )
-    }
+            CompositionLocalProvider(LocalResponsiveMetrics provides metrics) {
+                if (!preferences.onboardingComplete) {
+                    FirstInstallScreen(
+                        selectedTheme = preferences.themeMode,
+                        supportsImages = BuildConfig.SUPPORTS_IMAGES,
+                        onThemeSelected = preferences::setThemeMode,
+                        onContinue = {
+                            preferences.completeOnboarding(
+                                currentVersionCode = BuildConfig.VERSION_CODE,
+                                currentVersionName = BuildConfig.VERSION_NAME,
+                            )
+                        },
+                    )
+                } else {
+                    MainCompanionShell(
+                        uiState = uiState,
+                        updateState = updateState,
+                        preferences = preferences,
+                        onDatabaseAction = updateViewModel::onDatabaseAction,
+                        onAppAction = updateViewModel::onAppAction,
+                    )
 
+                    if (preferences.shouldShowVersionInformation(BuildConfig.VERSION_CODE)) {
+                        VersionInstalledDialog(
+                            previousVersion = preferences.previousVersionName,
+                            currentVersion = BuildConfig.VERSION_NAME,
+                            onDismiss = {
+                                preferences.acknowledgeVersion(
+                                    currentVersionCode = BuildConfig.VERSION_CODE,
+                                    currentVersionName = BuildConfig.VERSION_NAME,
+                                )
+                            },
+                            onOpenReleaseNotes = {
+                                onOpenUrl(BuildConfig.CURRENT_RELEASE_NOTES_URL)
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainCompanionShell(
+    uiState: CompanionUiState,
+    updateState: UpdateCenterUiState,
+    preferences: UiPreferences,
+    onDatabaseAction: () -> Unit,
+    onAppAction: () -> Unit,
+) {
+    val metrics = LocalResponsiveMetrics.current
     var selectedDestination by rememberSaveable { mutableStateOf(AppDestination.HOME.name) }
     val destination = AppDestination.entries.firstOrNull { it.name == selectedDestination }
         ?: AppDestination.HOME
@@ -151,63 +355,58 @@ fun CompanionRoot(
         selectedDestination = AppDestination.HOME.name
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val expanded = maxWidth >= 840.dp
-
-        if (expanded) {
-            Row(
+    if (metrics.useNavigationRail) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+        ) {
+            CompanionNavigationRail(
+                destination = destination,
+                onDestinationSelected = { selectedDestination = it.name },
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(1.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant),
+            )
+            DestinationContent(
+                destination = destination,
+                uiState = uiState,
+                updateState = updateState,
+                preferences = preferences,
+                onDestinationSelected = { selectedDestination = it.name },
+                onDatabaseAction = onDatabaseAction,
+                onAppAction = onAppAction,
+                onBack = { selectedDestination = AppDestination.HOME.name },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    } else {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            contentWindowInsets = WindowInsets.safeDrawing,
+            bottomBar = {
+                CompanionNavigationBar(
+                    destination = destination,
+                    onDestinationSelected = { selectedDestination = it.name },
+                )
+            },
+        ) { innerPadding ->
+            DestinationContent(
+                destination = destination,
+                uiState = uiState,
+                updateState = updateState,
+                preferences = preferences,
+                onDestinationSelected = { selectedDestination = it.name },
+                onDatabaseAction = onDatabaseAction,
+                onAppAction = onAppAction,
+                onBack = { selectedDestination = AppDestination.HOME.name },
                 modifier = Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.safeDrawing),
-            ) {
-                CompanionNavigationRail(
-                    destination = destination,
-                    onDestinationSelected = { selectedDestination = it.name },
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(1.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant),
-                )
-                DestinationContent(
-                    destination = destination,
-                    uiState = uiState,
-                    updateState = updateState,
-                    preferences = preferences,
-                    onDestinationSelected = { selectedDestination = it.name },
-                    onDatabaseAction = updateViewModel::onDatabaseAction,
-                    onAppAction = updateViewModel::onAppAction,
-                    onBack = { selectedDestination = AppDestination.HOME.name },
-                    horizontalPadding = WidePadding,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        } else {
-            Scaffold(
-                modifier = Modifier.fillMaxSize(),
-                bottomBar = {
-                    CompanionNavigationBar(
-                        destination = destination,
-                        onDestinationSelected = { selectedDestination = it.name },
-                    )
-                },
-            ) { innerPadding ->
-                DestinationContent(
-                    destination = destination,
-                    uiState = uiState,
-                    updateState = updateState,
-                    preferences = preferences,
-                    onDestinationSelected = { selectedDestination = it.name },
-                    onDatabaseAction = updateViewModel::onDatabaseAction,
-                    onAppAction = updateViewModel::onAppAction,
-                    onBack = { selectedDestination = AppDestination.HOME.name },
-                    horizontalPadding = PhonePadding,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                )
-            }
+                    .padding(innerPadding),
+            )
         }
     }
 }
@@ -219,61 +418,81 @@ private fun FirstInstallScreen(
     onThemeSelected: (ThemeMode) -> Unit,
     onContinue: () -> Unit,
 ) {
-    LazyColumn(
+    val metrics = LocalResponsiveMetrics.current
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing),
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.Center,
+        contentAlignment = Alignment.Center,
     ) {
-        item {
-            Text(
-                text = stringResource(R.string.onboarding_title),
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Black,
-            )
-            Text(
-                text = stringResource(R.string.onboarding_subtitle),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 10.dp),
-            )
-        }
+        LazyColumn(
+            modifier = Modifier
+                .widthIn(max = 760.dp)
+                .fillMaxSize(),
+            contentPadding = PaddingValues(
+                horizontal = metrics.horizontalPadding,
+                vertical = metrics.topPadding,
+            ),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            item {
+                Text(
+                    text = stringResource(R.string.onboarding_title),
+                    style = when (metrics.responsiveClass) {
+                        ResponsiveClass.NARROW -> MaterialTheme.typography.headlineMedium
+                        ResponsiveClass.COMPACT -> MaterialTheme.typography.headlineLarge
+                        ResponsiveClass.MEDIUM,
+                        ResponsiveClass.EXPANDED -> MaterialTheme.typography.displaySmall
+                    },
+                    fontWeight = FontWeight.Black,
+                )
+                Text(
+                    text = stringResource(R.string.onboarding_subtitle),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
 
-        item {
-            SettingsPanel(
-                title = stringResource(R.string.theme_setting_title),
-                description = stringResource(R.string.onboarding_theme_description),
-                modifier = Modifier.padding(top = 24.dp),
-            ) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(ThemeMode.entries) { mode ->
-                        FilterChip(
-                            selected = selectedTheme == mode,
-                            onClick = { onThemeSelected(mode) },
-                            label = { Text(themeLabel(mode)) },
-                        )
+            item {
+                SettingsPanel(
+                    title = stringResource(R.string.theme_setting_title),
+                    description = stringResource(R.string.onboarding_theme_description),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = metrics.sectionSpacing),
+                ) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(ThemeMode.entries) { mode ->
+                            FilterChip(
+                                selected = selectedTheme == mode,
+                                onClick = { onThemeSelected(mode) },
+                                label = { Text(themeLabel(mode)) },
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        item {
-            BuildProfileCard(
-                supportsImages = supportsImages,
-                modifier = Modifier.padding(top = 16.dp),
-            )
-        }
+            item {
+                BuildProfileCard(
+                    supportsImages = supportsImages,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = metrics.itemSpacing),
+                )
+            }
 
-        item {
-            TooltipButton(
-                label = stringResource(R.string.onboarding_continue),
-                tooltip = stringResource(R.string.tooltip_finish_setup),
-                onClick = onContinue,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 24.dp),
-            )
+            item {
+                TooltipButton(
+                    label = stringResource(R.string.onboarding_continue),
+                    tooltip = stringResource(R.string.tooltip_finish_setup),
+                    onClick = onContinue,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = metrics.sectionSpacing),
+                )
+            }
         }
     }
 }
@@ -321,6 +540,7 @@ private fun CompanionNavigationBar(
     destination: AppDestination,
     onDestinationSelected: (AppDestination) -> Unit,
 ) {
+    val metrics = LocalResponsiveMetrics.current
     Surface(
         tonalElevation = 3.dp,
         modifier = Modifier.navigationBarsPadding(),
@@ -328,7 +548,7 @@ private fun CompanionNavigationBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp),
+                .height(metrics.navigationBarHeight),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AppDestination.entries.forEach { item ->
@@ -348,11 +568,12 @@ private fun CompanionNavigationRail(
     destination: AppDestination,
     onDestinationSelected: (AppDestination) -> Unit,
 ) {
+    val metrics = LocalResponsiveMetrics.current
     Column(
         modifier = Modifier
             .fillMaxHeight()
-            .width(104.dp)
-            .padding(horizontal = 8.dp, vertical = 14.dp),
+            .width(metrics.navigationRailWidth)
+            .padding(horizontal = 8.dp, vertical = metrics.itemSpacing),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -360,7 +581,7 @@ private fun CompanionNavigationRail(
             text = stringResource(R.string.app_short_name),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(vertical = 12.dp),
+            modifier = Modifier.padding(vertical = metrics.itemSpacing),
         )
         AppDestination.entries.forEach { item ->
             NavigationButton(
@@ -380,22 +601,24 @@ private fun NavigationButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val metrics = LocalResponsiveMetrics.current
     val label = stringResource(item.labelRes)
+
     TooltipAction(
         tooltip = label,
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp),
+                .padding(vertical = if (metrics.showNavigationLabels) 6.dp else 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(metrics.navigationIconSize)
                     .clip(CircleShape)
                     .background(
                         if (selected) MaterialTheme.colorScheme.primaryContainer
@@ -405,18 +628,28 @@ private fun NavigationButton(
             ) {
                 Text(
                     text = item.glyph,
+                    style = when (metrics.responsiveClass) {
+                        ResponsiveClass.NARROW -> MaterialTheme.typography.labelLarge
+                        ResponsiveClass.COMPACT -> MaterialTheme.typography.titleSmall
+                        ResponsiveClass.MEDIUM,
+                        ResponsiveClass.EXPANDED -> MaterialTheme.typography.titleMedium
+                    },
                     color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Black,
                 )
             }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = if (selected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
+
+            if (metrics.showNavigationLabels) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (selected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -431,7 +664,6 @@ private fun DestinationContent(
     onDatabaseAction: () -> Unit,
     onAppAction: () -> Unit,
     onBack: () -> Unit,
-    horizontalPadding: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
@@ -439,13 +671,11 @@ private fun DestinationContent(
             uiState = uiState,
             installedDatabaseVersion = updateState.database.installedVersion,
             onCategorySelected = { onDestinationSelected(AppDestination.LIBRARY) },
-            horizontalPadding = horizontalPadding,
             modifier = modifier,
         )
 
         AppDestination.LIBRARY -> LibraryScreen(
             uiState = uiState,
-            horizontalPadding = horizontalPadding,
             onBack = onBack,
             modifier = modifier,
         )
@@ -454,7 +684,6 @@ private fun DestinationContent(
             updateState = updateState,
             onDatabaseAction = onDatabaseAction,
             onAppAction = onAppAction,
-            horizontalPadding = horizontalPadding,
             onBack = onBack,
             modifier = modifier,
         )
@@ -462,9 +691,26 @@ private fun DestinationContent(
         AppDestination.SETTINGS -> SettingsScreen(
             installedDatabaseVersion = updateState.database.installedVersion,
             preferences = preferences,
-            horizontalPadding = horizontalPadding,
             onBack = onBack,
             modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun ResponsiveContentFrame(
+    modifier: Modifier,
+    content: @Composable (Modifier) -> Unit,
+) {
+    val metrics = LocalResponsiveMetrics.current
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        content(
+            Modifier
+                .widthIn(max = metrics.contentMaxWidth)
+                .fillMaxSize(),
         )
     }
 }
@@ -474,66 +720,148 @@ private fun HomeScreen(
     uiState: CompanionUiState,
     installedDatabaseVersion: String,
     onCategorySelected: (CategoryUi) -> Unit,
-    horizontalPadding: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
 ) {
+    val metrics = LocalResponsiveMetrics.current
     val showImages = BuildConfig.SUPPORTS_IMAGES && uiState.imageAssetsAvailable
 
-    LazyColumn(
-        modifier = modifier,
-        contentPadding = PaddingValues(
-            start = horizontalPadding,
-            end = horizontalPadding,
-            top = 24.dp,
-            bottom = 30.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        item {
-            ScreenHeader(
-                title = stringResource(R.string.home_title),
-                subtitle = stringResource(R.string.home_subtitle),
-            )
-        }
+    ResponsiveContentFrame(modifier) { contentModifier ->
+        LazyColumn(
+            modifier = contentModifier,
+            contentPadding = PaddingValues(
+                start = metrics.horizontalPadding,
+                end = metrics.horizontalPadding,
+                top = metrics.topPadding,
+                bottom = metrics.sectionSpacing,
+            ),
+            verticalArrangement = Arrangement.spacedBy(metrics.sectionSpacing),
+        ) {
+            item {
+                ScreenHeader(
+                    title = stringResource(R.string.home_title),
+                    subtitle = stringResource(R.string.home_subtitle),
+                )
+            }
 
-        item {
-            HeroCard(
-                databaseVersion = installedDatabaseVersion,
-                supportsImages = BuildConfig.SUPPORTS_IMAGES,
-            )
-        }
+            item {
+                HeroCard(
+                    databaseVersion = installedDatabaseVersion,
+                    supportsImages = BuildConfig.SUPPORTS_IMAGES,
+                )
+            }
 
-        item {
-            SectionTitle(
-                title = stringResource(R.string.section_browse_categories),
-                subtitle = stringResource(R.string.section_browse_categories_subtitle),
-            )
-        }
+            item {
+                SectionTitle(
+                    title = stringResource(R.string.section_browse_categories),
+                    subtitle = stringResource(R.string.section_browse_categories_subtitle),
+                )
+            }
 
-        item {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(uiState.categories) { category ->
-                    CategoryButton(
-                        category = category,
-                        onClick = { onCategorySelected(category) },
-                    )
+            item {
+                ResponsiveCategoryCollection(
+                    categories = uiState.categories,
+                    onCategorySelected = onCategorySelected,
+                )
+            }
+
+            item {
+                SectionTitle(
+                    title = stringResource(R.string.section_featured),
+                    subtitle = if (showImages) {
+                        stringResource(R.string.image_layout_enabled)
+                    } else {
+                        stringResource(R.string.text_layout_enabled)
+                    },
+                )
+            }
+
+            item {
+                ResponsiveEntryCollection(
+                    entries = uiState.entries.take(4),
+                    showImages = showImages,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResponsiveCategoryCollection(
+    categories: List<CategoryUi>,
+    onCategorySelected: (CategoryUi) -> Unit,
+) {
+    val metrics = LocalResponsiveMetrics.current
+
+    if (metrics.categoryColumns <= 1) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(metrics.itemSpacing)) {
+            items(categories) { category ->
+                CategoryButton(
+                    category = category,
+                    onClick = { onCategorySelected(category) },
+                    modifier = Modifier.width(metrics.categoryCardWidth),
+                )
+            }
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing)) {
+            categories.chunked(metrics.categoryColumns).forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
+                ) {
+                    rowItems.forEach { category ->
+                        CategoryButton(
+                            category = category,
+                            onClick = { onCategorySelected(category) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    repeat(metrics.categoryColumns - rowItems.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
+    }
+}
 
-        item {
-            SectionTitle(
-                title = stringResource(R.string.section_featured),
-                subtitle = if (showImages) {
-                    stringResource(R.string.image_layout_enabled)
-                } else {
-                    stringResource(R.string.text_layout_enabled)
-                },
-            )
+@Composable
+private fun ResponsiveEntryCollection(
+    entries: List<LibraryEntryUi>,
+    showImages: Boolean,
+) {
+    val metrics = LocalResponsiveMetrics.current
+
+    if (metrics.useTwoColumnCards) {
+        Column(verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing)) {
+            entries.chunked(2).forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
+                ) {
+                    rowItems.forEach { entry ->
+                        LibraryEntryCard(
+                            entry = entry,
+                            showImages = showImages,
+                            forceStacked = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    if (rowItems.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
         }
-
-        items(uiState.entries.take(4), key = { it.id }) { entry ->
-            LibraryEntryCard(entry = entry, showImages = showImages)
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing)) {
+            entries.forEach { entry ->
+                LibraryEntryCard(
+                    entry = entry,
+                    showImages = showImages,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
@@ -541,10 +869,10 @@ private fun HomeScreen(
 @Composable
 private fun LibraryScreen(
     uiState: CompanionUiState,
-    horizontalPadding: androidx.compose.ui.unit.Dp,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val metrics = LocalResponsiveMetrics.current
     var query by rememberSaveable { mutableStateOf("") }
     val context = LocalContext.current
     val showImages = BuildConfig.SUPPORTS_IMAGES && uiState.imageAssetsAvailable
@@ -554,35 +882,73 @@ private fun LibraryScreen(
             context.getString(entry.typeRes).contains(query, ignoreCase = true)
     }
 
-    LazyColumn(
-        modifier = modifier,
-        contentPadding = PaddingValues(
-            start = horizontalPadding,
-            end = horizontalPadding,
-            top = 20.dp,
-            bottom = 30.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        item {
-            ScreenHeader(
-                title = stringResource(R.string.library_title),
-                subtitle = stringResource(R.string.library_subtitle),
-                onBack = onBack,
-            )
-        }
-        item {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.search_library_label)) },
-                singleLine = true,
-                shape = RoundedCornerShape(20.dp),
-            )
-        }
-        items(visibleEntries, key = { it.id }) { entry ->
-            LibraryEntryCard(entry = entry, showImages = showImages)
+    ResponsiveContentFrame(modifier) { contentModifier ->
+        Column(
+            modifier = contentModifier.padding(top = metrics.topPadding),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = metrics.horizontalPadding),
+                verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
+            ) {
+                ScreenHeader(
+                    title = stringResource(R.string.library_title),
+                    subtitle = stringResource(R.string.library_subtitle),
+                    onBack = onBack,
+                )
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.search_library_label)) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(metrics.cardRadius.coerceAtMost(20.dp)),
+                )
+            }
+
+            if (metrics.useGrid) {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = metrics.gridMinWidth),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = metrics.itemSpacing),
+                    contentPadding = PaddingValues(
+                        start = metrics.horizontalPadding,
+                        end = metrics.horizontalPadding,
+                        bottom = metrics.sectionSpacing,
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
+                    verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
+                ) {
+                    items(visibleEntries, key = { it.id }) { entry ->
+                        LibraryEntryCard(
+                            entry = entry,
+                            showImages = showImages,
+                            forceStacked = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = metrics.itemSpacing),
+                    contentPadding = PaddingValues(
+                        start = metrics.horizontalPadding,
+                        end = metrics.horizontalPadding,
+                        bottom = metrics.sectionSpacing,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
+                ) {
+                    items(visibleEntries, key = { it.id }) { entry ->
+                        LibraryEntryCard(
+                            entry = entry,
+                            showImages = showImages,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -592,40 +958,49 @@ private fun UpdatesScreen(
     updateState: UpdateCenterUiState,
     onDatabaseAction: () -> Unit,
     onAppAction: () -> Unit,
-    horizontalPadding: androidx.compose.ui.unit.Dp,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier,
-        contentPadding = PaddingValues(
-            start = horizontalPadding,
-            end = horizontalPadding,
-            top = 20.dp,
-            bottom = 30.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            ScreenHeader(
-                title = stringResource(R.string.updates_title),
-                subtitle = stringResource(R.string.updates_subtitle_new),
-                onBack = onBack,
-            )
-        }
-        item {
-            DatabaseUpdateCard(
-                state = updateState.database,
-                supportsImages = updateState.supportsImages,
-                assetVersion = updateState.assetVersion,
-                onAction = onDatabaseAction,
-            )
-        }
-        item {
-            AppUpdateCard(
-                state = updateState.app,
-                onAction = onAppAction,
-            )
+    val metrics = LocalResponsiveMetrics.current
+
+    ResponsiveContentFrame(modifier) { contentModifier ->
+        LazyColumn(
+            modifier = contentModifier,
+            contentPadding = PaddingValues(
+                start = metrics.horizontalPadding,
+                end = metrics.horizontalPadding,
+                top = metrics.topPadding,
+                bottom = metrics.sectionSpacing,
+            ),
+            verticalArrangement = Arrangement.spacedBy(metrics.sectionSpacing),
+        ) {
+            item {
+                ScreenHeader(
+                    title = stringResource(R.string.updates_title),
+                    subtitle = stringResource(R.string.updates_subtitle_new),
+                    onBack = onBack,
+                )
+            }
+            item {
+                ResponsivePair(
+                    first = {
+                        DatabaseUpdateCard(
+                            state = updateState.database,
+                            supportsImages = updateState.supportsImages,
+                            assetVersion = updateState.assetVersion,
+                            onAction = onDatabaseAction,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    },
+                    second = {
+                        AppUpdateCard(
+                            state = updateState.app,
+                            onAction = onAppAction,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    },
+                )
+            }
         }
     }
 }
@@ -634,76 +1009,119 @@ private fun UpdatesScreen(
 private fun SettingsScreen(
     installedDatabaseVersion: String,
     preferences: UiPreferences,
-    horizontalPadding: androidx.compose.ui.unit.Dp,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val metrics = LocalResponsiveMetrics.current
     val currentLanguage = remember {
         Locale.getDefault().getDisplayName(Locale.getDefault())
     }
 
-    LazyColumn(
-        modifier = modifier,
-        contentPadding = PaddingValues(
-            start = horizontalPadding,
-            end = horizontalPadding,
-            top = 20.dp,
-            bottom = 30.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            ScreenHeader(
-                title = stringResource(R.string.settings_title),
-                subtitle = stringResource(R.string.settings_subtitle_new),
-                onBack = onBack,
-            )
-        }
-        item {
-            SettingsPanel(
-                title = stringResource(R.string.theme_setting_title),
-                description = stringResource(R.string.theme_setting_description),
-            ) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(ThemeMode.entries) { mode ->
-                        FilterChip(
-                            selected = preferences.themeMode == mode,
-                            onClick = { preferences.setThemeMode(mode) },
-                            label = { Text(themeLabel(mode)) },
+    ResponsiveContentFrame(modifier) { contentModifier ->
+        LazyColumn(
+            modifier = contentModifier,
+            contentPadding = PaddingValues(
+                start = metrics.horizontalPadding,
+                end = metrics.horizontalPadding,
+                top = metrics.topPadding,
+                bottom = metrics.sectionSpacing,
+            ),
+            verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
+        ) {
+            item {
+                ScreenHeader(
+                    title = stringResource(R.string.settings_title),
+                    subtitle = stringResource(R.string.settings_subtitle_new),
+                    onBack = onBack,
+                )
+            }
+            item {
+                ResponsivePair(
+                    first = {
+                        SettingsPanel(
+                            title = stringResource(R.string.theme_setting_title),
+                            description = stringResource(R.string.theme_setting_description),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                items(ThemeMode.entries) { mode ->
+                                    FilterChip(
+                                        selected = preferences.themeMode == mode,
+                                        onClick = { preferences.setThemeMode(mode) },
+                                        label = { Text(themeLabel(mode)) },
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    second = {
+                        BuildProfileCard(
+                            supportsImages = BuildConfig.SUPPORTS_IMAGES,
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                    }
-                }
+                    },
+                )
             }
-        }
-        item {
-            BuildProfileCard(supportsImages = BuildConfig.SUPPORTS_IMAGES)
-        }
-        item {
-            SettingsPanel(
-                title = stringResource(R.string.language_setting_title),
-                description = stringResource(R.string.language_setting_description),
-            ) {
-                Text(
-                    text = stringResource(R.string.language_current, currentLanguage),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+            item {
+                ResponsivePair(
+                    first = {
+                        SettingsPanel(
+                            title = stringResource(R.string.language_setting_title),
+                            description = stringResource(R.string.language_setting_description),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.language_current, currentLanguage),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    },
+                    second = {
+                        SettingsPanel(
+                            title = stringResource(R.string.about_title),
+                            description = stringResource(R.string.unofficial_notice),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.installed_versions,
+                                    BuildConfig.VERSION_NAME,
+                                    installedDatabaseVersion,
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    },
                 )
             }
         }
-        item {
-            SettingsPanel(
-                title = stringResource(R.string.about_title),
-                description = stringResource(R.string.unofficial_notice),
-            ) {
-                Text(
-                    text = stringResource(
-                        R.string.installed_versions,
-                        BuildConfig.VERSION_NAME,
-                        installedDatabaseVersion,
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
+    }
+}
+
+@Composable
+private fun ResponsivePair(
+    first: @Composable () -> Unit,
+    second: @Composable () -> Unit,
+) {
+    val metrics = LocalResponsiveMetrics.current
+
+    if (metrics.useTwoColumnCards) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Box(modifier = Modifier.weight(1f)) { first() }
+            Box(modifier = Modifier.weight(1f)) { second() }
+        }
+    } else {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
+        ) {
+            first()
+            second()
         }
     }
 }
@@ -714,11 +1132,13 @@ private fun DatabaseUpdateCard(
     supportsImages: Boolean,
     assetVersion: String,
     onAction: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     UpdateCardFrame(
         title = stringResource(R.string.database_package_title),
         installedVersion = state.installedVersion,
         statusContent = { UpdateStatus(state) },
+        modifier = modifier,
     ) {
         Text(
             text = stringResource(R.string.database_package_description_new),
@@ -779,11 +1199,13 @@ private fun DatabaseUpdateCard(
 private fun AppUpdateCard(
     state: UpdateItemUiState,
     onAction: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     UpdateCardFrame(
         title = stringResource(R.string.app_package_title),
         installedVersion = state.installedVersion,
         statusContent = { UpdateStatus(state) },
+        modifier = modifier,
     ) {
         Text(
             text = stringResource(R.string.app_package_description_new),
@@ -828,35 +1250,57 @@ private fun UpdateCardFrame(
     title: String,
     installedVersion: String,
     statusContent: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(shape = RoundedCornerShape(24.dp)) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+    val metrics = LocalResponsiveMetrics.current
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(metrics.cardRadius),
+    ) {
+        BoxWithConstraints {
+            val stackHeader = maxWidth < 390.dp
+            Column(
+                modifier = Modifier.padding(metrics.cardPadding),
+                verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = stringResource(R.string.version_label, installedVersion),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                if (stackHeader) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        UpdateCardTitle(title, installedVersion)
+                        statusContent()
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            UpdateCardTitle(title, installedVersion)
+                        }
+                        Spacer(modifier = Modifier.width(metrics.itemSpacing))
+                        statusContent()
+                    }
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                statusContent()
+                content()
             }
-            content()
         }
+    }
+}
+
+@Composable
+private fun UpdateCardTitle(title: String, installedVersion: String) {
+    Column {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = stringResource(R.string.version_label, installedVersion),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -865,14 +1309,19 @@ private fun UpdateStatus(state: UpdateItemUiState) {
     when (state.phase) {
         UpdatePhase.CHECKING -> AssistChip(
             onClick = {},
-            label = { Text(stringResource(R.string.status_checking)) },
+            label = { Text(stringResource(R.string.status_checking), maxLines = 1) },
         )
 
         UpdatePhase.UP_TO_DATE -> Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text("✓", color = SuccessGreen, fontWeight = FontWeight.Black)
+            Text(
+                text = "✓",
+                style = MaterialTheme.typography.titleMedium,
+                color = SuccessGreen,
+                fontWeight = FontWeight.Black,
+            )
             Text(
                 text = if (state.justUpdated) {
                     stringResource(R.string.status_updated)
@@ -881,6 +1330,7 @@ private fun UpdateStatus(state: UpdateItemUiState) {
                 },
                 color = SuccessGreen,
                 fontWeight = FontWeight.Bold,
+                maxLines = 2,
             )
         }
 
@@ -892,28 +1342,35 @@ private fun UpdateStatus(state: UpdateItemUiState) {
                         R.string.status_version_available,
                         state.availableVersion ?: "",
                     ),
+                    maxLines = 2,
                 )
             },
         )
 
         UpdatePhase.DOWNLOADING -> AssistChip(
             onClick = {},
-            label = { Text(stringResource(R.string.status_downloading)) },
+            label = { Text(stringResource(R.string.status_downloading), maxLines = 1) },
         )
 
         UpdatePhase.READY_TO_INSTALL -> AssistChip(
             onClick = {},
-            label = { Text(stringResource(R.string.status_install_ready)) },
+            label = { Text(stringResource(R.string.status_install_ready), maxLines = 2) },
         )
 
         UpdatePhase.NOT_AVAILABLE -> AssistChip(
             onClick = {},
-            label = { Text(stringResource(R.string.status_not_published)) },
+            label = { Text(stringResource(R.string.status_not_published), maxLines = 2) },
         )
 
         UpdatePhase.ERROR -> AssistChip(
             onClick = {},
-            label = { Text(state.message ?: stringResource(R.string.status_check_failed)) },
+            label = {
+                Text(
+                    state.message ?: stringResource(R.string.status_check_failed),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
         )
     }
 }
@@ -993,20 +1450,32 @@ private fun ScreenHeader(
     subtitle: String,
     onBack: (() -> Unit)? = null,
 ) {
+    val metrics = LocalResponsiveMetrics.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top,
     ) {
         if (onBack != null) {
+            val backSize = metrics.navigationIconSize.coerceAtLeast(40.dp)
             TooltipAction(
                 tooltip = stringResource(R.string.action_back),
                 onClick = onBack,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.sizeIn(
+                    minWidth = 48.dp,
+                    minHeight = 48.dp,
+                    maxWidth = backSize + 10.dp,
+                    maxHeight = backSize + 10.dp,
+                ),
             ) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = "‹",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = when (metrics.responsiveClass) {
+                            ResponsiveClass.NARROW,
+                            ResponsiveClass.COMPACT -> MaterialTheme.typography.headlineMedium
+                            ResponsiveClass.MEDIUM,
+                            ResponsiveClass.EXPANDED -> MaterialTheme.typography.headlineLarge
+                        },
                         fontWeight = FontWeight.Black,
                     )
                 }
@@ -1016,8 +1485,15 @@ private fun ScreenHeader(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineMedium,
+                style = when (metrics.responsiveClass) {
+                    ResponsiveClass.NARROW -> MaterialTheme.typography.headlineSmall
+                    ResponsiveClass.COMPACT -> MaterialTheme.typography.headlineMedium
+                    ResponsiveClass.MEDIUM,
+                    ResponsiveClass.EXPANDED -> MaterialTheme.typography.headlineLarge
+                },
                 fontWeight = FontWeight.Black,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = subtitle,
@@ -1031,6 +1507,7 @@ private fun ScreenHeader(
 
 @Composable
 private fun HeroCard(databaseVersion: String, supportsImages: Boolean) {
+    val metrics = LocalResponsiveMetrics.current
     val gradient = Brush.linearGradient(
         listOf(
             MaterialTheme.colorScheme.primary,
@@ -1038,14 +1515,15 @@ private fun HeroCard(databaseVersion: String, supportsImages: Boolean) {
         ),
     )
     Card(
-        shape = RoundedCornerShape(30.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(metrics.cardRadius + 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(gradient)
-                .padding(24.dp),
+                .padding(metrics.cardPadding + 4.dp),
         ) {
             Text(
                 text = stringResource(R.string.hero_eyebrow),
@@ -1055,7 +1533,12 @@ private fun HeroCard(databaseVersion: String, supportsImages: Boolean) {
             )
             Text(
                 text = stringResource(R.string.hero_title),
-                style = MaterialTheme.typography.headlineSmall,
+                style = when (metrics.responsiveClass) {
+                    ResponsiveClass.NARROW -> MaterialTheme.typography.titleLarge
+                    ResponsiveClass.COMPACT -> MaterialTheme.typography.headlineSmall
+                    ResponsiveClass.MEDIUM,
+                    ResponsiveClass.EXPANDED -> MaterialTheme.typography.headlineMedium
+                },
                 color = Color.White,
                 fontWeight = FontWeight.Black,
                 modifier = Modifier.padding(top = 8.dp),
@@ -1096,30 +1579,41 @@ private fun SectionTitle(title: String, subtitle: String) {
 }
 
 @Composable
-private fun CategoryButton(category: CategoryUi, onClick: () -> Unit) {
+private fun CategoryButton(
+    category: CategoryUi,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val metrics = LocalResponsiveMetrics.current
     val label = stringResource(category.titleRes)
     TooltipAction(
         tooltip = label,
         onClick = onClick,
-        modifier = Modifier.width(150.dp),
+        modifier = modifier,
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(22.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = metrics.categoryCardMinHeight),
+            shape = RoundedCornerShape(metrics.cardRadius),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
             ),
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(
+                modifier = Modifier.padding(metrics.cardPadding),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(metrics.categoryIconSize)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = category.glyph,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
@@ -1128,7 +1622,9 @@ private fun CategoryButton(category: CategoryUi, onClick: () -> Unit) {
                     text = label,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 14.dp),
+                    modifier = Modifier.padding(top = metrics.itemSpacing),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = stringResource(R.string.entry_count, category.count),
@@ -1142,50 +1638,123 @@ private fun CategoryButton(category: CategoryUi, onClick: () -> Unit) {
 }
 
 @Composable
-private fun LibraryEntryCard(entry: LibraryEntryUi, showImages: Boolean) {
+private fun LibraryEntryCard(
+    entry: LibraryEntryUi,
+    showImages: Boolean,
+    modifier: Modifier = Modifier,
+    forceStacked: Boolean = false,
+) {
+    val metrics = LocalResponsiveMetrics.current
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        modifier = modifier,
+        shape = RoundedCornerShape(metrics.cardRadius),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (showImages) {
-                EntryArtwork(
-                    entry = entry,
+        BoxWithConstraints {
+            val stacked = forceStacked || (showImages && maxWidth < 390.dp)
+            if (stacked) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (showImages) {
+                        EntryArtwork(
+                            entry = entry,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f),
+                        )
+                    }
+                    EntryTextContent(
+                        entry = entry,
+                        modifier = Modifier.padding(metrics.cardPadding),
+                        showFallbackIcon = !showImages,
+                    )
+                }
+            } else {
+                Row(
                     modifier = Modifier
-                        .size(88.dp)
-                        .clip(RoundedCornerShape(18.dp)),
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(entry.typeRes),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = stringResource(entry.nameRes),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = stringResource(entry.detailRes),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
+                        .fillMaxWidth()
+                        .padding(metrics.cardPadding),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (showImages) {
+                        EntryArtwork(
+                            entry = entry,
+                            modifier = Modifier
+                                .size(metrics.artworkSize)
+                                .clip(RoundedCornerShape(metrics.cardRadius.coerceAtMost(18.dp))),
+                        )
+                        Spacer(modifier = Modifier.width(metrics.itemSpacing))
+                    } else {
+                        EntryFallbackIcon(entry)
+                        Spacer(modifier = Modifier.width(metrics.itemSpacing))
+                    }
+                    EntryTextContent(
+                        entry = entry,
+                        modifier = Modifier.weight(1f),
+                        showFallbackIcon = false,
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun EntryTextContent(
+    entry: LibraryEntryUi,
+    modifier: Modifier = Modifier,
+    showFallbackIcon: Boolean,
+) {
+    val metrics = LocalResponsiveMetrics.current
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+    ) {
+        if (showFallbackIcon) {
+            EntryFallbackIcon(entry)
+            Spacer(modifier = Modifier.width(metrics.itemSpacing))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(entry.typeRes),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = stringResource(entry.nameRes),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = stringResource(entry.detailRes),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = if (metrics.useGrid) 3 else 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun EntryFallbackIcon(entry: LibraryEntryUi) {
+    val metrics = LocalResponsiveMetrics.current
+    Box(
+        modifier = Modifier
+            .size(metrics.categoryIconSize)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = entry.accentLabel.take(2),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+        )
     }
 }
 
@@ -1216,6 +1785,7 @@ private fun EntryArtwork(entry: LibraryEntryUi, modifier: Modifier = Modifier) {
             Text(
                 text = entry.accentLabel.take(2),
                 style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
                 fontWeight = FontWeight.Black,
             )
         }
@@ -1229,18 +1799,21 @@ private fun SettingsPanel(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val metrics = LocalResponsiveMetrics.current
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(metrics.cardRadius),
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(metrics.cardPadding),
+            verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = description,
@@ -1260,14 +1833,15 @@ private fun TooltipButton(
     modifier: Modifier = Modifier,
     primary: Boolean = true,
 ) {
+    val metrics = LocalResponsiveMetrics.current
     TooltipAction(
         tooltip = tooltip,
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.sizeIn(minHeight = 48.dp),
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(metrics.cardRadius.coerceAtMost(16.dp)),
             color = if (primary) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.secondaryContainer,
             contentColor = if (primary) MaterialTheme.colorScheme.onPrimary
@@ -1277,7 +1851,12 @@ private fun TooltipButton(
                 text = label,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 13.dp),
+                modifier = Modifier.padding(
+                    horizontal = metrics.cardPadding,
+                    vertical = 13.dp,
+                ),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -1290,8 +1869,11 @@ private fun TooltipAction(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val metrics = LocalResponsiveMetrics.current
     var tooltipVisible by remember { mutableStateOf(false) }
-    val tooltipOffset = with(LocalDensity.current) { (-52).dp.roundToPx() }
+    val tooltipOffset = with(LocalDensity.current) {
+        -(metrics.navigationIconSize + 20.dp).roundToPx()
+    }
 
     LaunchedEffect(tooltipVisible) {
         if (tooltipVisible) {
@@ -1316,6 +1898,7 @@ private fun TooltipAction(
                 properties = PopupProperties(focusable = false),
             ) {
                 Surface(
+                    modifier = Modifier.widthIn(max = 280.dp),
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.inverseSurface,
                     contentColor = MaterialTheme.colorScheme.inverseOnSurface,
