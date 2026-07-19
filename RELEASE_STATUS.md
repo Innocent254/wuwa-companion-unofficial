@@ -5,16 +5,16 @@ Generated manifests, release state and public release output are excluded from c
 
 | Item | Value |
 |---|---|
-| Current visible version | `0.2.2` |
-| Current Android version code | `4` |
-| Current channel | `unreleased` |
-| Source changes detected | **Yes** |
-| Android source changed | Yes |
-| Database source changed | Yes |
+| Current visible version | `0.3.0` |
+| Current Android version code | `5` |
+| Current channel | `prerelease` |
+| Source changes detected | **No** |
+| Android source changed | No |
+| Database source changed | No |
 | Planned visible version | **`0.3.0`** |
-| Planned Android version code | `5` |
+| Planned Android version code | `6` |
 
-The next visible version will be **0.3.0** (a +0.1 minor bump from 0.2.2).
+No source change was detected. Stable publish will promote **0.3.0** without changing the visible version.
 
 ## One universal application
 

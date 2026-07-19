@@ -1,10 +1,10 @@
 {
-  "version_code": 4,
-  "version_name": "0.2.2",
+  "version_code": 5,
+  "version_name": "0.3.0",
   "minimum_android_sdk": 26,
   "supports_images": true,
-  "apk_url": null,
-  "apk_sha256": null,
-  "release_notes_url": null,
-  "available": false
+  "apk_url": "https://github.com/Innocent254/wuwa-companion-unofficial/releases/download/app-v0.3.0/WuWaCompanion-0.3.0.apk",
+  "apk_sha256": "8e715b9a7d9826ebd6912fde711d943b09dde1bed17487ecb4b02cb53821209f",
+  "release_notes_url": "https://github.com/Innocent254/wuwa-companion-unofficial/releases/tag/app-v0.3.0",
+  "available": true
 }
