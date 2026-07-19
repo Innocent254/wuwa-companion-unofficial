@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "version_name": "0.4.0",
-  "version_code": 6,
+  "version_name": "0.5.0",
+  "version_code": 7,
   "channel": "prerelease",
-  "app_content_hash": "ff3d92f74ebc8d776ac801e7a22907d342be651124d3e930e7cc244a95198ba9",
-  "database_content_hash": "a4caa5d8e9de216bd306222ae3dc61d891ee7362337b9d8926460d4cf4e81f5f"
+  "app_content_hash": "a472181e2ba381d298d5fabb11348e919c21672a3f853624c967940fe3515c03",
+  "database_content_hash": "3ae43d7b3c70b3ab02430f2eb90c8951a1648beb6701db2693bac9ffab87d165"
 }
