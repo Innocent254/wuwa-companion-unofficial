@@ -30,6 +30,7 @@ data class LibraryEntryUi(
     val nameText: String? = null,
     val typeText: String? = null,
     val detailText: String? = null,
+    val metadata: List<Pair<String, String>> = emptyList(),
     val searchTerms: List<String> = emptyList(),
     val accentLabel: String,
     val imageAvailable: Boolean,
@@ -59,6 +60,7 @@ data class LibraryEntryUi(
             displayDetail(context),
             categoryId,
             accentLabel,
+            *metadata.flatMap { listOf(it.first, it.second) }.toTypedArray(),
             *searchTerms.toTypedArray(),
         ).any { it.contains(needle, ignoreCase = true) }
     }

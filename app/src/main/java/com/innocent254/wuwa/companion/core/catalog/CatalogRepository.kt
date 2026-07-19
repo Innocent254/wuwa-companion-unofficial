@@ -95,6 +95,7 @@ class CatalogRepository(context: Context) {
             detailText = record.summary.ifBlank {
                 appContext.getString(R.string.catalog_summary_unavailable)
             },
+            metadata = record.displayMetadata(),
             searchTerms = record.categories,
             accentLabel = usefulCategory ?: category.glyph,
             imageAvailable = imageAvailable,
@@ -139,5 +140,28 @@ private data class CatalogEntity(
     @SerialName("entity_type") val entityType: String,
     val summary: String = "",
     val categories: List<String> = emptyList(),
+    val rarity: Int? = null,
+    val element: String? = null,
+    @SerialName("weapon_type") val weaponType: String? = null,
+    @SerialName("echo_class") val echoClass: String? = null,
+    val faction: String? = null,
+    val region: String? = null,
+    @SerialName("release_version") val releaseVersion: String? = null,
+    @SerialName("release_date") val releaseDate: String? = null,
+    @SerialName("material_type") val materialType: String? = null,
+    @SerialName("acquisition_sources") val acquisitionSources: List<String> = emptyList(),
     @SerialName("image_path") val imagePath: String? = null,
-)
+) {
+    fun displayMetadata(): List<Pair<String, String>> = buildList {
+        rarity?.let { add("Rarity" to "$it-star") }
+        element?.let { add("Element" to it) }
+        weaponType?.let { add("Weapon" to it) }
+        echoClass?.let { add("Class" to it) }
+        faction?.let { add("Faction" to it) }
+        region?.takeUnless { it == faction }?.let { add("Region" to it) }
+        releaseVersion?.let { add("Introduced" to "Version $it") }
+        releaseDate?.let { add("Release date" to it) }
+        materialType?.let { add("Material type" to it) }
+        acquisitionSources.takeIf { it.isNotEmpty() }?.let { add("Source" to it.joinToString()) }
+    }
+}

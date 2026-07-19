@@ -1880,6 +1880,16 @@ private fun EntryTextContent(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 4.dp),
             )
+            if (entry.metadata.isNotEmpty()) {
+                Text(
+                    text = entry.metadata.joinToString("  •  ") { (label, value) -> "$label: $value" },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = if (metrics.useGrid) 3 else 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
         }
     }
 }
