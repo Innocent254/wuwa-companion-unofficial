@@ -55,6 +55,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
             ),
             assetVersion = installedAssetVersion,
             supportsImages = true,
+            imagePackageAvailable = null,
         ),
     )
     val uiState = _uiState.asStateFlow()
@@ -539,6 +540,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                 app = appState,
                 assetVersion = installedAssetVersion,
                 supportsImages = true,
+                imagePackageAvailable = availability.data?.assets?.available,
             )
         }
     }

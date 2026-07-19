@@ -67,4 +67,17 @@
     <string name="toast_downloaded_apk_missing">The downloaded APK is no longer available. Download the update again.</string>
     <string name="toast_allow_unknown_sources">Allow this app to install updates, then return to continue.</string>
     <string name="toast_cannot_open_link">No application could open this link.</string>
+
+    <string name="data_mode_images_checking">Checking whether this version publishes an image package. Images remains unavailable until the check completes.</string>
+    <string name="data_mode_images_unavailable_version">Images support is not available for this version. The Images choice will be enabled automatically when a verified image package is published.</string>
+
+    <string name="category_all">All</string>
+    <string name="catalog_summary_unavailable">No summary is available for this entry yet.</string>
+    <string name="catalog_not_installed_title">Database not installed</string>
+    <string name="catalog_not_installed_body">Open Updates and install the current database. The Library will reload automatically when installation finishes.</string>
+    <string name="catalog_no_search_results_title">No matching entries</string>
+    <string name="catalog_no_search_results_body">Try another name, type, category, or keyword.</string>
+    <string name="catalog_empty_category_title">No entries in this category</string>
+    <string name="catalog_empty_category_body">The installed database does not currently contain records for this category.</string>
+
 </resources>

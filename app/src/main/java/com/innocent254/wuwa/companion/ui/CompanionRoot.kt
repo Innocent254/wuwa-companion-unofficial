@@ -287,6 +287,16 @@ fun CompanionRoot(
         }
     }
 
+    LaunchedEffect(updateState.imagePackageAvailable) {
+        if (
+            (!BuildConfig.IMAGE_MODE_AVAILABLE || updateState.imagePackageAvailable == false) &&
+            preferences.dataMode == DataMode.IMAGES
+        ) {
+            preferences.setDataMode(DataMode.MINIMALIST)
+            updateViewModel.onDataModeChanged(DataMode.MINIMALIST)
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
@@ -301,6 +311,11 @@ fun CompanionRoot(
                     FirstInstallScreen(
                         selectedTheme = preferences.themeMode,
                         selectedDataMode = preferences.dataMode,
+                        imagePackageAvailable = if (BuildConfig.IMAGE_MODE_AVAILABLE) {
+                            updateState.imagePackageAvailable
+                        } else {
+                            false
+                        },
                         onThemeSelected = preferences::setThemeMode,
                         onDataModeSelected = preferences::setDataMode,
                         onContinue = {
@@ -353,6 +368,7 @@ private fun MainCompanionShell(
 ) {
     val metrics = LocalResponsiveMetrics.current
     var selectedDestination by rememberSaveable { mutableStateOf(AppDestination.HOME.name) }
+    var selectedCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
     val destination = AppDestination.entries.firstOrNull { it.name == selectedDestination }
         ?: AppDestination.HOME
 
@@ -382,6 +398,11 @@ private fun MainCompanionShell(
                 updateState = updateState,
                 preferences = preferences,
                 onDestinationSelected = { selectedDestination = it.name },
+                selectedCategoryId = selectedCategoryId,
+                onCategorySelected = { category ->
+                    selectedCategoryId = category.id
+                    selectedDestination = AppDestination.LIBRARY.name
+                },
                 onDatabaseAction = onDatabaseAction,
                 onAppAction = onAppAction,
                 onDataModeChanged = onDataModeChanged,
@@ -406,6 +427,11 @@ private fun MainCompanionShell(
                 updateState = updateState,
                 preferences = preferences,
                 onDestinationSelected = { selectedDestination = it.name },
+                selectedCategoryId = selectedCategoryId,
+                onCategorySelected = { category ->
+                    selectedCategoryId = category.id
+                    selectedDestination = AppDestination.LIBRARY.name
+                },
                 onDatabaseAction = onDatabaseAction,
                 onAppAction = onAppAction,
                 onDataModeChanged = onDataModeChanged,
@@ -422,6 +448,7 @@ private fun MainCompanionShell(
 private fun FirstInstallScreen(
     selectedTheme: ThemeMode,
     selectedDataMode: DataMode,
+    imagePackageAvailable: Boolean?,
     onThemeSelected: (ThemeMode) -> Unit,
     onDataModeSelected: (DataMode) -> Unit,
     onContinue: () -> Unit,
@@ -485,6 +512,7 @@ private fun FirstInstallScreen(
             item {
                 DataModePanel(
                     selectedMode = selectedDataMode,
+                    imagePackageAvailable = imagePackageAvailable,
                     onModeSelected = onDataModeSelected,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -670,6 +698,8 @@ private fun DestinationContent(
     updateState: UpdateCenterUiState,
     preferences: UiPreferences,
     onDestinationSelected: (AppDestination) -> Unit,
+    selectedCategoryId: String?,
+    onCategorySelected: (CategoryUi) -> Unit,
     onDatabaseAction: () -> Unit,
     onAppAction: () -> Unit,
     onDataModeChanged: (DataMode) -> Unit,
@@ -682,12 +712,13 @@ private fun DestinationContent(
             installedDatabaseVersion = updateState.database.installedVersion,
             dataMode = preferences.dataMode,
             imagesInstalled = updateState.assetVersion != "0.0.0",
-            onCategorySelected = { onDestinationSelected(AppDestination.LIBRARY) },
+            onCategorySelected = onCategorySelected,
             modifier = modifier,
         )
 
         AppDestination.LIBRARY -> LibraryScreen(
             uiState = uiState,
+            initialCategoryId = selectedCategoryId,
             dataMode = preferences.dataMode,
             imagesInstalled = updateState.assetVersion != "0.0.0",
             onBack = onBack,
@@ -706,6 +737,11 @@ private fun DestinationContent(
         AppDestination.SETTINGS -> SettingsScreen(
             installedDatabaseVersion = updateState.database.installedVersion,
             preferences = preferences,
+            imagePackageAvailable = if (BuildConfig.IMAGE_MODE_AVAILABLE) {
+                updateState.imagePackageAvailable
+            } else {
+                false
+            },
             onDataModeChanged = onDataModeChanged,
             onBack = onBack,
             modifier = modifier,
@@ -888,6 +924,7 @@ private fun ResponsiveEntryCollection(
 @Composable
 private fun LibraryScreen(
     uiState: CompanionUiState,
+    initialCategoryId: String?,
     dataMode: DataMode,
     imagesInstalled: Boolean,
     onBack: () -> Unit,
@@ -895,12 +932,17 @@ private fun LibraryScreen(
 ) {
     val metrics = LocalResponsiveMetrics.current
     var query by rememberSaveable { mutableStateOf("") }
+    var activeCategoryId by rememberSaveable { mutableStateOf(initialCategoryId) }
     val context = LocalContext.current
     val showImages = dataMode == DataMode.IMAGES && imagesInstalled
+
+    LaunchedEffect(initialCategoryId) {
+        activeCategoryId = initialCategoryId
+    }
+
     val visibleEntries = uiState.entries.filter { entry ->
-        query.isBlank() ||
-            context.getString(entry.nameRes).contains(query, ignoreCase = true) ||
-            context.getString(entry.typeRes).contains(query, ignoreCase = true)
+        (activeCategoryId == null || entry.categoryId == activeCategoryId) &&
+            entry.matches(context, query)
     }
 
     ResponsiveContentFrame(modifier) { contentModifier ->
@@ -924,9 +966,33 @@ private fun LibraryScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(metrics.cardRadius.coerceAtMost(20.dp)),
                 )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    item {
+                        FilterChip(
+                            selected = activeCategoryId == null,
+                            onClick = { activeCategoryId = null },
+                            label = { Text(stringResource(R.string.category_all)) },
+                        )
+                    }
+                    items(uiState.categories, key = { it.id }) { category ->
+                        FilterChip(
+                            selected = activeCategoryId == category.id,
+                            onClick = { activeCategoryId = category.id },
+                            label = { Text(stringResource(category.titleRes)) },
+                        )
+                    }
+                }
             }
 
-            if (metrics.useGrid) {
+            if (visibleEntries.isEmpty()) {
+                CatalogEmptyState(
+                    databaseReady = uiState.databaseReady,
+                    hasQuery = query.isNotBlank(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(metrics.horizontalPadding),
+                )
+            } else if (metrics.useGrid) {
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = metrics.gridMinWidth),
                     modifier = Modifier
@@ -970,6 +1036,39 @@ private fun LibraryScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CatalogEmptyState(
+    databaseReady: Boolean,
+    hasQuery: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = when {
+                    !databaseReady -> stringResource(R.string.catalog_not_installed_title)
+                    hasQuery -> stringResource(R.string.catalog_no_search_results_title)
+                    else -> stringResource(R.string.catalog_empty_category_title)
+                },
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = when {
+                    !databaseReady -> stringResource(R.string.catalog_not_installed_body)
+                    hasQuery -> stringResource(R.string.catalog_no_search_results_body)
+                    else -> stringResource(R.string.catalog_empty_category_body)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -1031,6 +1130,7 @@ private fun UpdatesScreen(
 private fun SettingsScreen(
     installedDatabaseVersion: String,
     preferences: UiPreferences,
+    imagePackageAvailable: Boolean?,
     onDataModeChanged: (DataMode) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1080,6 +1180,7 @@ private fun SettingsScreen(
                     second = {
                         DataModePanel(
                             selectedMode = preferences.dataMode,
+                            imagePackageAvailable = imagePackageAvailable,
                             onModeSelected = { mode ->
                                 preferences.setDataMode(mode)
                                 onDataModeChanged(mode)
@@ -1437,6 +1538,7 @@ private fun DownloadProgress(progress: Float, label: String) {
 @Composable
 private fun DataModePanel(
     selectedMode: DataMode,
+    imagePackageAvailable: Boolean?,
     onModeSelected: (DataMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1447,17 +1549,21 @@ private fun DataModePanel(
     ) {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             items(DataMode.entries) { mode ->
+                val enabled = mode == DataMode.MINIMALIST || imagePackageAvailable == true
                 FilterChip(
                     selected = selectedMode == mode,
                     onClick = { onModeSelected(mode) },
+                    enabled = enabled,
                     label = { Text(dataModeLabel(mode)) },
                 )
             }
         }
         Text(
-            text = when (selectedMode) {
-                DataMode.MINIMALIST -> stringResource(R.string.data_mode_minimalist_description)
-                DataMode.IMAGES -> stringResource(R.string.data_mode_images_description)
+            text = when {
+                imagePackageAvailable == null -> stringResource(R.string.data_mode_images_checking)
+                imagePackageAvailable == false -> stringResource(R.string.data_mode_images_unavailable_version)
+                selectedMode == DataMode.IMAGES -> stringResource(R.string.data_mode_images_description)
+                else -> stringResource(R.string.data_mode_minimalist_description)
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1739,20 +1845,20 @@ private fun EntryTextContent(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(entry.typeRes),
+                text = entry.displayType(LocalContext.current),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = stringResource(entry.nameRes),
+                text = entry.displayName(LocalContext.current),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = stringResource(entry.detailRes),
+                text = entry.displayDetail(LocalContext.current),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = if (metrics.useGrid) 3 else 2,
@@ -1790,7 +1896,7 @@ private fun EntryArtwork(entry: LibraryEntryUi, modifier: Modifier = Modifier) {
             model = entry.imageModel,
             contentDescription = stringResource(
                 R.string.entry_image_description,
-                stringResource(entry.nameRes),
+                entry.displayName(LocalContext.current),
             ),
             contentScale = ContentScale.Crop,
             modifier = modifier,

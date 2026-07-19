@@ -70,6 +70,11 @@ data class UpdateCenterUiState(
     val app: UpdateItemUiState,
     val assetVersion: String,
     val supportsImages: Boolean,
+    /**
+     * null while the remote data manifest is still being checked,
+     * true only when this release publishes a usable image package.
+     */
+    val imagePackageAvailable: Boolean? = null,
 )
 
 sealed interface UpdateEvent {

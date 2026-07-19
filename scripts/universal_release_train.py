@@ -15,6 +15,7 @@ APP_EXCLUDES = (
     ".release/universal-state.json",
     "RELEASE_STATUS.md",
     "updates/app-update*.json",
+    "releases/**",
 )
 DATABASE_EXCLUDES = ("public/**",)
 

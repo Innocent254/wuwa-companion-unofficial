@@ -10,13 +10,16 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModelProvider
+import com.innocent254.wuwa.companion.core.catalog.CatalogViewModel
 import com.innocent254.wuwa.companion.core.update.UpdateViewModel
 import com.innocent254.wuwa.companion.ui.CompanionRoot
-import com.innocent254.wuwa.companion.ui.model.DemoUiStateFactory
 import com.innocent254.wuwa.companion.ui.preferences.UiPreferences
 import com.innocent254.wuwa.companion.ui.theme.WuWaTheme
 import java.io.File
@@ -38,6 +41,10 @@ class MainActivity : ComponentActivity() {
         ViewModelProvider(this)[UpdateViewModel::class.java]
     }
 
+    private val catalogViewModel: CatalogViewModel by lazy {
+        ViewModelProvider(this)[CatalogViewModel::class.java]
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -47,11 +54,11 @@ class MainActivity : ComponentActivity() {
             val preferences = remember(applicationContext) {
                 UiPreferences(applicationContext)
             }
-            val uiState = remember {
-                DemoUiStateFactory.create().copy(
-                    appVersion = BuildConfig.VERSION_NAME,
-                    imageAssetsAvailable = BuildConfig.SUPPORTS_IMAGES,
-                )
+            val uiState by catalogViewModel.uiState.collectAsState()
+            val updateState by updateViewModel.uiState.collectAsState()
+
+            LaunchedEffect(updateState.database.installedVersion) {
+                catalogViewModel.reload()
             }
 
             WuWaTheme(themeMode = preferences.themeMode) {

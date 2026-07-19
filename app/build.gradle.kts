@@ -48,6 +48,7 @@ android {
         )
         // Compatibility fields retained while the codebase transitions from split APK profiles.
         buildConfigField("boolean", "SUPPORTS_IMAGES", "true")
+        buildConfigField("boolean", "IMAGE_MODE_AVAILABLE", "false")
         buildConfigField("String", "BUILD_PROFILE", "\"universal\"")
         buildConfigField("String", "RELEASE_CHANNEL", "\"$resolvedReleaseChannel\"")
         buildConfigField(
