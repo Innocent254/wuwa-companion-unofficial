@@ -493,6 +493,7 @@ private fun FirstInstallScreen(
                 SettingsPanel(
                     title = stringResource(R.string.theme_setting_title),
                     description = stringResource(R.string.onboarding_theme_description),
+                    icon = WuWaIcon.THEME,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = metrics.sectionSpacing),
@@ -524,6 +525,7 @@ private fun FirstInstallScreen(
                 TooltipButton(
                     label = stringResource(R.string.onboarding_continue),
                     tooltip = stringResource(R.string.tooltip_finish_setup),
+                    icon = WuWaIcon.CHECK,
                     onClick = onContinue,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -663,17 +665,17 @@ private fun NavigationButton(
                     ),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = item.glyph,
-                    style = when (metrics.responsiveClass) {
-                        ResponsiveClass.NARROW -> MaterialTheme.typography.labelLarge
-                        ResponsiveClass.COMPACT -> MaterialTheme.typography.titleSmall
-                        ResponsiveClass.MEDIUM,
-                        ResponsiveClass.EXPANDED -> MaterialTheme.typography.titleMedium
+                WuWaGlyph(
+                    icon = when (item) {
+                        AppDestination.HOME -> WuWaIcon.HOME
+                        AppDestination.LIBRARY -> WuWaIcon.LIBRARY
+                        AppDestination.UPDATES -> WuWaIcon.UPDATES
+                        AppDestination.SETTINGS -> WuWaIcon.SETTINGS
                     },
-                    color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                    contentDescription = label,
+                    modifier = Modifier.size(metrics.navigationIconSize * 0.56f),
+                    tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
                     else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Black,
                 )
             }
 
@@ -963,6 +965,14 @@ private fun LibraryScreen(
                     onValueChange = { query = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.search_library_label)) },
+                    leadingIcon = {
+                        WuWaGlyph(
+                            icon = WuWaIcon.SEARCH,
+                            contentDescription = null,
+                            modifier = Modifier.size(21.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
                     singleLine = true,
                     shape = RoundedCornerShape(metrics.cardRadius.coerceAtMost(20.dp)),
                 )
@@ -1164,6 +1174,7 @@ private fun SettingsScreen(
                         SettingsPanel(
                             title = stringResource(R.string.theme_setting_title),
                             description = stringResource(R.string.theme_setting_description),
+                            icon = WuWaIcon.THEME,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1196,6 +1207,7 @@ private fun SettingsScreen(
                         SettingsPanel(
                             title = stringResource(R.string.language_setting_title),
                             description = stringResource(R.string.language_setting_description),
+                            icon = WuWaIcon.LANGUAGE,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
@@ -1209,6 +1221,7 @@ private fun SettingsScreen(
                         SettingsPanel(
                             title = stringResource(R.string.about_title),
                             description = stringResource(R.string.unofficial_notice),
+                            icon = WuWaIcon.INFO,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
@@ -1297,6 +1310,7 @@ private fun DatabaseUpdateCard(
                 label = stringResource(R.string.action_update_database),
                 tooltip = stringResource(R.string.tooltip_update_database),
                 onClick = onAction,
+                icon = WuWaIcon.DOWNLOAD,
             )
 
             UpdatePhase.UP_TO_DATE -> {
@@ -1305,6 +1319,7 @@ private fun DatabaseUpdateCard(
                         label = stringResource(R.string.action_check_database),
                         tooltip = stringResource(R.string.tooltip_check_database),
                         onClick = onAction,
+                        icon = WuWaIcon.UPDATES,
                         primary = false,
                     )
                 }
@@ -1315,6 +1330,7 @@ private fun DatabaseUpdateCard(
                 label = stringResource(R.string.action_retry_database),
                 tooltip = stringResource(R.string.tooltip_retry_database),
                 onClick = onAction,
+                icon = WuWaIcon.RETRY,
                 primary = false,
             )
 
@@ -1358,12 +1374,14 @@ private fun AppUpdateCard(
                 ),
                 tooltip = stringResource(R.string.tooltip_download_app),
                 onClick = onAction,
+                icon = WuWaIcon.DOWNLOAD,
             )
 
             UpdatePhase.READY_TO_INSTALL -> TooltipButton(
                 label = stringResource(R.string.action_install_app_update),
                 tooltip = stringResource(R.string.tooltip_install_app),
                 onClick = onAction,
+                icon = WuWaIcon.INSTALL,
             )
 
             UpdatePhase.UP_TO_DATE,
@@ -1444,11 +1462,11 @@ private fun UpdateStatus(state: UpdateItemUiState) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(
-                text = "✓",
-                style = MaterialTheme.typography.titleMedium,
-                color = SuccessGreen,
-                fontWeight = FontWeight.Black,
+            WuWaGlyph(
+                icon = WuWaIcon.CHECK,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = SuccessGreen,
             )
             Text(
                 text = if (state.justUpdated) {
@@ -1545,6 +1563,7 @@ private fun DataModePanel(
     SettingsPanel(
         title = stringResource(R.string.data_mode_title),
         description = stringResource(R.string.data_mode_description),
+        icon = WuWaIcon.IMAGE,
         modifier = modifier,
     ) {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1595,15 +1614,11 @@ private fun ScreenHeader(
                 ),
             ) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "‹",
-                        style = when (metrics.responsiveClass) {
-                            ResponsiveClass.NARROW,
-                            ResponsiveClass.COMPACT -> MaterialTheme.typography.headlineMedium
-                            ResponsiveClass.MEDIUM,
-                            ResponsiveClass.EXPANDED -> MaterialTheme.typography.headlineLarge
-                        },
-                        fontWeight = FontWeight.Black,
+                    WuWaGlyph(
+                        icon = WuWaIcon.BACK,
+                        contentDescription = stringResource(R.string.action_back),
+                        modifier = Modifier.size(backSize * 0.52f),
+                        tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -1742,11 +1757,11 @@ private fun CategoryButton(
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = category.glyph,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    WuWaGlyph(
+                        icon = categoryIcon(category.id),
+                        contentDescription = label,
+                        modifier = Modifier.size(metrics.categoryIconSize * 0.58f),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
                 Text(
@@ -1879,12 +1894,11 @@ private fun EntryFallbackIcon(entry: LibraryEntryUi) {
             .background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = entry.accentLabel.take(2),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            fontWeight = FontWeight.Black,
-            maxLines = 1,
+        WuWaGlyph(
+            icon = categoryIcon(entry.categoryId),
+            contentDescription = null,
+            modifier = Modifier.size(metrics.categoryIconSize * 0.58f),
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
         )
     }
 }
@@ -1913,11 +1927,11 @@ private fun EntryArtwork(entry: LibraryEntryUi, modifier: Modifier = Modifier) {
             ),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = entry.accentLabel.take(2),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                fontWeight = FontWeight.Black,
+            WuWaGlyph(
+                icon = categoryIcon(entry.categoryId),
+                contentDescription = null,
+                modifier = Modifier.size(42.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
     }
@@ -1927,6 +1941,7 @@ private fun EntryArtwork(entry: LibraryEntryUi, modifier: Modifier = Modifier) {
 private fun SettingsPanel(
     title: String,
     description: String,
+    icon: WuWaIcon? = null,
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -1939,13 +1954,34 @@ private fun SettingsPanel(
             modifier = Modifier.padding(metrics.cardPadding),
             verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        WuWaGlyph(
+                            icon = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
@@ -1963,6 +1999,7 @@ private fun TooltipButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     primary: Boolean = true,
+    icon: WuWaIcon? = null,
 ) {
     val metrics = LocalResponsiveMetrics.current
     TooltipAction(
@@ -1978,17 +2015,32 @@ private fun TooltipButton(
             contentColor = if (primary) MaterialTheme.colorScheme.onPrimary
             else MaterialTheme.colorScheme.onSecondaryContainer,
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
+            Row(
                 modifier = Modifier.padding(
                     horizontal = metrics.cardPadding,
                     vertical = 13.dp,
                 ),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (icon != null) {
+                    WuWaGlyph(
+                        icon = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(19.dp),
+                        tint = if (primary) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                    Spacer(modifier = Modifier.width(9.dp))
+                }
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
