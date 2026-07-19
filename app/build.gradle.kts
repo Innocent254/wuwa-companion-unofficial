@@ -58,14 +58,11 @@ android {
     }
 
     signingConfigs {
-        create("persistentDebug") {
-            val storePath = System.getenv("ANDROID_TEST_KEYSTORE_PATH")
-            if (!storePath.isNullOrBlank()) {
-                storeFile = file(storePath)
-                storePassword = System.getenv("TEST_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("TEST_KEY_ALIAS")
-                keyPassword = System.getenv("TEST_KEY_PASSWORD")
-            }
+        create("debugConfig") {
+            storeFile = file("${rootDir}/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
         }
 
         create("release") {
@@ -83,9 +80,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            if (!System.getenv("ANDROID_TEST_KEYSTORE_PATH").isNullOrBlank()) {
-                signingConfig = signingConfigs.getByName("persistentDebug")
-            }
+            signingConfig = signingConfigs.getByName("debugConfig")
         }
         release {
             isMinifyEnabled = true
@@ -111,7 +106,7 @@ android {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 dependencies {
