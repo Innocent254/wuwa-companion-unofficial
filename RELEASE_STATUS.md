@@ -8,13 +8,13 @@ Generated manifests, release state and public release output are excluded from c
 | Current visible version | `0.4.0` |
 | Current Android version code | `6` |
 | Current channel | `prerelease` |
-| Source changes detected | **No** |
-| Android source changed | No |
-| Database source changed | No |
-| Planned visible version | **`0.4.0`** |
+| Source changes detected | **Yes** |
+| Android source changed | Yes |
+| Database source changed | Yes |
+| Planned visible version | **`0.5.0`** |
 | Planned Android version code | `7` |
 
-No source change was detected. Stable publish will promote **0.4.0** without changing the visible version.
+The next visible version will be **0.5.0** (a +0.1 minor bump from 0.4.0).
 
 ## One universal application
 
