@@ -1,0 +1,56 @@
+name: Refresh universal release status
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "RELEASE_STATUS.md"
+      - ".release/universal-state.json"
+      - "updates/app-update*.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-universal-release-status
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Android repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check out database repository
+        uses: actions/checkout@v4
+        with:
+          repository: Innocent254/wuwa-database-server
+          path: database-source
+          fetch-depth: 1
+          token: ${{ secrets.WUWA_RELEASE_TOKEN != '' && secrets.WUWA_RELEASE_TOKEN || github.token }}
+
+      - name: Refresh status file
+        run: |
+          python scripts/universal_release_train.py status \
+            --app . \
+            --database database-source \
+            --output RELEASE_STATUS.md
+          cat RELEASE_STATUS.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit changed status
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add RELEASE_STATUS.md
+          if ! git diff --cached --quiet; then
+            git commit -m "Refresh universal release status"
+            git push
+          fi
