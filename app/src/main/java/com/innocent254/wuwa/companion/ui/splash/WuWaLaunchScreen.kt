@@ -292,7 +292,8 @@ private fun LaunchParticles(
 
         repeat(16) { index ->
             val angle = (index / 16f) * (PI * 2f) + phase * PI * 2f
-            val wobble = 0.84f + 0.16f * sin(phase * PI * 4f + index)
+            val wobble = 0.84f +
+                0.16f * sin(phase * PI * 4f + index).toFloat()
             val x = cx + cos(angle).toFloat() * baseRadius * wobble
             val y = cy + sin(angle).toFloat() * baseRadius * 0.46f * wobble
             drawCircle(
