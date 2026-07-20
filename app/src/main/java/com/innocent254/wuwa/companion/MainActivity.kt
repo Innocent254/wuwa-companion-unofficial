@@ -13,14 +13,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.ViewModelProvider
 import com.innocent254.wuwa.companion.core.catalog.CatalogViewModel
 import com.innocent254.wuwa.companion.core.update.UpdateViewModel
 import com.innocent254.wuwa.companion.ui.CompanionRoot
 import com.innocent254.wuwa.companion.ui.preferences.UiPreferences
+import com.innocent254.wuwa.companion.ui.splash.WuWaLaunchScreen
 import com.innocent254.wuwa.companion.ui.theme.WuWaTheme
 import java.io.File
 
@@ -46,6 +51,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -56,19 +62,28 @@ class MainActivity : ComponentActivity() {
             }
             val uiState by catalogViewModel.uiState.collectAsState()
             val updateState by updateViewModel.uiState.collectAsState()
+            var showLaunchScreen by rememberSaveable {
+                mutableStateOf(savedInstanceState == null)
+            }
 
             LaunchedEffect(updateState.database.installedVersion) {
                 catalogViewModel.reload()
             }
 
             WuWaTheme(themeMode = preferences.themeMode) {
-                CompanionRoot(
-                    uiState = uiState,
-                    preferences = preferences,
-                    updateViewModel = updateViewModel,
-                    onInstallApk = ::requestPackageInstall,
-                    onOpenUrl = ::openExternalUrl,
-                )
+                if (showLaunchScreen) {
+                    WuWaLaunchScreen(
+                        onFinished = { showLaunchScreen = false },
+                    )
+                } else {
+                    CompanionRoot(
+                        uiState = uiState,
+                        preferences = preferences,
+                        updateViewModel = updateViewModel,
+                        onInstallApk = ::requestPackageInstall,
+                        onOpenUrl = ::openExternalUrl,
+                    )
+                }
             }
         }
     }
