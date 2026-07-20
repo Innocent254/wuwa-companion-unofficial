@@ -27,8 +27,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -43,16 +43,14 @@ import androidx.compose.ui.unit.sp
 import com.innocent254.wuwa.companion.R
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.min
 import kotlin.math.sin
 
 private const val LaunchDurationMillis = 5_500
 
 /**
- * Theme-aware launch animation shared by phones and tablets.
- *
- * Phones use the compact vertical lockup; landscape tablets use the horizontal
- * lockup. The title and divider fully retract before the emblem settles at the
- * exact center, which also prevents a trailing glyph or divider overlap.
+ * Native Compose port of the supplied splash_phone.html and splash_tablet.html.
+ * All artwork and motion are rendered from vector paths at runtime.
  */
 @Composable
 fun WuWaLaunchScreen(
@@ -78,8 +76,8 @@ fun WuWaLaunchScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        val tablet = maxWidth >= 600.dp && maxWidth > maxHeight
         val timeline = LaunchTimeline(progress.value)
+        val tablet = maxWidth >= 600.dp && maxWidth > maxHeight
 
         if (tablet) {
             TabletLaunchLayout(
@@ -103,22 +101,21 @@ private fun PhoneLaunchLayout(
     height: Dp,
     timeline: LaunchTimeline,
 ) {
-    val iconSize = 88.dp
     val centerX = width / 2
     val centerY = height / 2
-    val stagedCenterY = centerY - 72.dp
-    val iconCenterY = lerp(stagedCenterY, centerY, timeline.settle)
-    val dividerY = centerY + 10.dp
-    val titleTop = dividerY + 18.dp
+    val iconSize = 78.dp
+    val stagedIconCenterY = centerY - 58.dp
+    val iconCenterY = lerp(stagedIconCenterY, centerY, timeline.settle)
+    val lineY = centerY + 2.dp
 
-    LaunchParticles(
+    PhoneWaveField(
         centerX = centerX,
-        centerY = iconCenterY,
-        radius = 55.dp,
-        phase = timeline.raw,
-        alpha = timeline.particleAlpha,
+        lineY = lineY,
+        iconCenterY = iconCenterY,
+        timeline = timeline,
     )
-    LaunchIcon(
+
+    LaunchEmblem(
         drawable = R.drawable.resonance_node_icon,
         size = iconSize,
         x = centerX - iconSize / 2,
@@ -126,37 +123,20 @@ private fun PhoneLaunchLayout(
         timeline = timeline,
     )
 
-    if (timeline.dividerAlpha > 0f) {
-        Box(
-            modifier = Modifier
-                .offset(x = centerX - 130.dp, y = dividerY)
-                .width(260.dp)
-                .height(2.dp)
-                .graphicsLayer { alpha = timeline.dividerAlpha }
-                .background(
-                    color = MaterialTheme.colorScheme.onBackground,
-                    shape = RoundedCornerShape(50),
-                ),
-        )
-    }
+    LaunchTitle(
+        modifier = Modifier
+            .offset(x = centerX - 170.dp, y = lineY + 31.dp)
+            .width(340.dp),
+        centered = true,
+        tablet = false,
+        timeline = timeline,
+    )
 
-    if (timeline.textVisibility > 0f) {
-        Box(
-            modifier = Modifier
-                .offset(x = centerX - 145.dp, y = titleTop)
-                .width(290.dp)
-                .height(74.dp)
-                .clipToBounds(),
-            contentAlignment = Alignment.TopCenter,
-        ) {
-            LaunchTitle(
-                modifier = Modifier
-                    .offset(y = (-74).dp * (1f - timeline.textVisibility))
-                    .alpha(timeline.textVisibility),
-                centered = true,
-            )
-        }
-    }
+    LaunchProgress(
+        modifier = Modifier.offset(x = centerX - 50.dp, y = lineY + 116.dp),
+        width = 100.dp,
+        timeline = timeline,
+    )
 }
 
 @Composable
@@ -165,22 +145,21 @@ private fun TabletLaunchLayout(
     height: Dp,
     timeline: LaunchTimeline,
 ) {
-    val iconSize = 100.dp
     val centerX = width / 2
     val centerY = height / 2
-    val stagedCenterX = centerX - 115.dp
-    val iconCenterX = lerp(stagedCenterX, centerX, timeline.settle)
-    val dividerX = centerX
-    val titleLeft = dividerX + 20.dp
+    val iconSize = 88.dp
+    val stagedIconCenterX = centerX - 126.dp
+    val iconCenterX = lerp(stagedIconCenterX, centerX, timeline.settle)
+    val titleLeft = centerX + 34.dp
 
-    LaunchParticles(
-        centerX = iconCenterX,
+    TabletWaveField(
+        lineX = centerX,
         centerY = centerY,
-        radius = 62.dp,
-        phase = timeline.raw,
-        alpha = timeline.particleAlpha,
+        iconCenterX = iconCenterX,
+        timeline = timeline,
     )
-    LaunchIcon(
+
+    LaunchEmblem(
         drawable = R.drawable.resonance_node_icon,
         size = iconSize,
         x = iconCenterX - iconSize / 2,
@@ -188,52 +167,253 @@ private fun TabletLaunchLayout(
         timeline = timeline,
     )
 
-    if (timeline.dividerAlpha > 0f) {
-        Box(
-            modifier = Modifier
-                .offset(x = dividerX - 1.dp, y = centerY - 70.dp)
-                .width(2.dp)
-                .height(140.dp)
-                .graphicsLayer { alpha = timeline.dividerAlpha }
-                .background(
-                    color = MaterialTheme.colorScheme.onBackground,
-                    shape = RoundedCornerShape(50),
-                ),
-        )
-    }
+    LaunchTitle(
+        modifier = Modifier
+            .offset(x = titleLeft, y = centerY - 39.dp)
+            .width(360.dp),
+        centered = false,
+        tablet = true,
+        timeline = timeline,
+    )
 
-    if (timeline.textVisibility > 0f) {
-        Box(
-            modifier = Modifier
-                .offset(x = titleLeft, y = centerY - 38.dp)
-                .width(285.dp)
-                .height(76.dp)
-                .clipToBounds(),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            LaunchTitle(
-                modifier = Modifier
-                    .offset(x = (-285).dp * (1f - timeline.textVisibility))
-                    .alpha(timeline.textVisibility),
-                centered = false,
+    LaunchProgress(
+        modifier = Modifier.offset(x = titleLeft, y = centerY + 64.dp),
+        width = 120.dp,
+        timeline = timeline,
+    )
+}
+
+@Composable
+private fun PhoneWaveField(
+    centerX: Dp,
+    lineY: Dp,
+    iconCenterY: Dp,
+    timeline: LaunchTimeline,
+) {
+    val color = MaterialTheme.colorScheme.onBackground
+    Canvas(Modifier.fillMaxSize()) {
+        if (timeline.sceneAlpha <= 0f) return@Canvas
+
+        val cx = centerX.toPx()
+        val y = lineY.toPx()
+        val iconY = iconCenterY.toPx()
+        val grow = smoothStep(0f, 0.09f, timeline.raw)
+        val halfLength = min(size.width * 0.44f, 210.dp.toPx()) * grow
+        val amplitude = 2.dp.toPx()
+        val path = Path()
+        val segments = 80
+
+        repeat(segments + 1) { index ->
+            val fraction = index / segments.toFloat()
+            val x = cx - halfLength + halfLength * 2f * fraction
+            val envelope = sin(fraction * PI).toFloat()
+            val wave = sin(fraction * PI * 6f + timeline.raw * PI * 6f).toFloat()
+            val waveY = y + wave * amplitude * envelope
+            if (index == 0) path.moveTo(x, waveY) else path.lineTo(x, waveY)
+        }
+
+        drawPath(
+            path = path,
+            color = color,
+            alpha = timeline.sceneAlpha * 0.06f,
+            style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round),
+        )
+        drawPath(
+            path = path,
+            color = color,
+            alpha = timeline.sceneAlpha * 0.86f,
+            style = Stroke(width = 1.35.dp.toPx(), cap = StrokeCap.Round),
+        )
+
+        val capPulse = 0.7f + 0.3f * sin(timeline.raw * PI * 22f).toFloat()
+        drawCircle(
+            color = color,
+            radius = 2.3.dp.toPx() * capPulse,
+            center = androidx.compose.ui.geometry.Offset(cx - halfLength, y),
+            alpha = timeline.sceneAlpha * 0.5f,
+        )
+        drawCircle(
+            color = color,
+            radius = 2.3.dp.toPx() * capPulse,
+            center = androidx.compose.ui.geometry.Offset(cx + halfLength, y),
+            alpha = timeline.sceneAlpha * 0.5f,
+        )
+
+        repeat(40) { index ->
+            val base = ((index * 37) % 101) / 100f
+            val drift = sin(timeline.raw * PI * 8f + index * 1.7f).toFloat()
+            val particleX = cx - halfLength + halfLength * 2f * base
+            val particleY = y + drift * 5.dp.toPx()
+            val pulse = 0.5f + 0.5f * sin(timeline.raw * PI * 10f + index).toFloat()
+            drawCircle(
+                color = color,
+                radius = (0.6f + (index % 4) * 0.25f).dp.toPx(),
+                center = androidx.compose.ui.geometry.Offset(particleX, particleY),
+                alpha = timeline.sceneAlpha * pulse * 0.52f,
             )
         }
+
+        repeat(16) { index ->
+            val angle = index / 16f * PI * 2f + timeline.raw * PI * 3f
+            val radius = (19 + index % 5 * 2).dp.toPx()
+            val particleX = cx + cos(angle).toFloat() * radius
+            val particleY = iconY + sin(angle).toFloat() * radius * 0.42f
+            val pulse = 0.72f + 0.28f * sin(timeline.raw * PI * 4f + index).toFloat()
+            drawCircle(
+                color = color,
+                radius = (0.85f + (index % 3) * 0.3f).dp.toPx() * pulse,
+                center = androidx.compose.ui.geometry.Offset(particleX, particleY),
+                alpha = timeline.sceneAlpha * 0.52f * pulse,
+            )
+        }
+
+        drawAmbientParticles(
+            color = color,
+            colorAlpha = timeline.sceneAlpha * 0.18f,
+            phase = timeline.raw,
+        )
     }
 }
 
 @Composable
-private fun LaunchIcon(
+private fun TabletWaveField(
+    lineX: Dp,
+    centerY: Dp,
+    iconCenterX: Dp,
+    timeline: LaunchTimeline,
+) {
+    val color = MaterialTheme.colorScheme.onBackground
+    Canvas(Modifier.fillMaxSize()) {
+        if (timeline.sceneAlpha <= 0f) return@Canvas
+
+        val x = lineX.toPx()
+        val cy = centerY.toPx()
+        val iconX = iconCenterX.toPx()
+        val grow = smoothStep(0f, 0.09f, timeline.raw)
+        val halfLength = min(size.height * 0.43f, 280.dp.toPx()) * grow
+        val amplitude = 3.5.dp.toPx()
+        val path = Path()
+        val segments = 96
+
+        repeat(segments + 1) { index ->
+            val fraction = index / segments.toFloat()
+            val y = cy - halfLength + halfLength * 2f * fraction
+            val envelope = sin(fraction * PI).toFloat()
+            val wave = sin(fraction * PI * 8f + timeline.raw * PI * 4f).toFloat()
+            val waveX = x + wave * amplitude * envelope
+            if (index == 0) path.moveTo(waveX, y) else path.lineTo(waveX, y)
+        }
+
+        drawPath(
+            path = path,
+            color = color,
+            alpha = timeline.sceneAlpha * 0.08f,
+            style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round),
+        )
+        drawPath(
+            path = path,
+            color = color,
+            alpha = timeline.sceneAlpha * 0.90f,
+            style = Stroke(width = 1.35.dp.toPx(), cap = StrokeCap.Round),
+        )
+
+        val capPulse = 0.7f + 0.3f * sin(timeline.raw * PI * 18f).toFloat()
+        drawCircle(
+            color = color,
+            radius = 2.5.dp.toPx() * capPulse,
+            center = androidx.compose.ui.geometry.Offset(x, cy - halfLength),
+            alpha = timeline.sceneAlpha * 0.55f,
+        )
+        drawCircle(
+            color = color,
+            radius = 2.5.dp.toPx() * capPulse,
+            center = androidx.compose.ui.geometry.Offset(x, cy + halfLength),
+            alpha = timeline.sceneAlpha * 0.55f,
+        )
+
+        repeat(50) { index ->
+            val fraction = ((index * 29) % 101) / 100f
+            val particleY = cy - halfLength + halfLength * 2f * fraction
+            val drift = sin(timeline.raw * PI * 8f + index * 1.3f).toFloat()
+            val particleX = x + drift * 4.dp.toPx()
+            val pulse = 0.5f + 0.5f * sin(timeline.raw * PI * 9f + index).toFloat()
+            drawCircle(
+                color = color,
+                radius = (0.55f + (index % 4) * 0.22f).dp.toPx(),
+                center = androidx.compose.ui.geometry.Offset(particleX, particleY),
+                alpha = timeline.sceneAlpha * pulse * 0.55f,
+            )
+        }
+
+        repeat(3) { ringIndex ->
+            val radius = (31 + ringIndex * 28).dp.toPx()
+            drawOval(
+                color = color,
+                topLeft = androidx.compose.ui.geometry.Offset(
+                    iconX - radius,
+                    cy - radius * 0.35f,
+                ),
+                size = androidx.compose.ui.geometry.Size(radius * 2f, radius * 0.70f),
+                alpha = timeline.sceneAlpha * 0.045f,
+                style = Stroke(width = 0.55.dp.toPx(), cap = StrokeCap.Round),
+            )
+
+            val count = 10 + ringIndex * 6
+            repeat(count) { index ->
+                val direction = if (ringIndex % 2 == 0) 1f else -1f
+                val angle = index / count.toFloat() * PI * 2f +
+                    direction * timeline.raw * PI * (2f + ringIndex * 0.5f)
+                val pulse = 0.88f + 0.12f * sin(timeline.raw * PI * 8f + index).toFloat()
+                val particleX = iconX + cos(angle).toFloat() * radius * pulse
+                val particleY = cy + sin(angle).toFloat() * radius * 0.35f * pulse
+                drawCircle(
+                    color = color,
+                    radius = (0.75f + (index % 3) * 0.25f).dp.toPx(),
+                    center = androidx.compose.ui.geometry.Offset(particleX, particleY),
+                    alpha = timeline.sceneAlpha * (0.28f + ringIndex * 0.07f),
+                )
+            }
+        }
+
+        drawAmbientParticles(
+            color = color,
+            colorAlpha = timeline.sceneAlpha * 0.16f,
+            phase = timeline.raw,
+        )
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawAmbientParticles(
+    color: androidx.compose.ui.graphics.Color,
+    colorAlpha: Float,
+    phase: Float,
+) {
+    repeat(18) { index ->
+        val xFraction = ((index * 43) % 97) / 96f
+        val yFraction = ((index * 67) % 103) / 102f
+        val driftX = sin(phase * PI * 2f + index).toFloat() * 8.dp.toPx()
+        val driftY = cos(phase * PI * 1.4f + index * 0.7f).toFloat() * 8.dp.toPx()
+        drawCircle(
+            color = color,
+            radius = (0.4f + (index % 3) * 0.2f).dp.toPx(),
+            center = androidx.compose.ui.geometry.Offset(
+                size.width * xFraction + driftX,
+                size.height * yFraction + driftY,
+            ),
+            alpha = colorAlpha * (0.55f + (index % 4) * 0.12f),
+        )
+    }
+}
+
+@Composable
+private fun LaunchEmblem(
     @DrawableRes drawable: Int,
     size: Dp,
     x: Dp,
     y: Dp,
     timeline: LaunchTimeline,
 ) {
-    Image(
-        painter = painterResource(drawable),
-        contentDescription = stringResource(R.string.launch_icon_description),
-        contentScale = ContentScale.Fit,
-        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onBackground),
+    Box(
         modifier = Modifier
             .offset(x = x, y = y)
             .size(size)
@@ -242,13 +422,28 @@ private fun LaunchIcon(
                 scaleX = timeline.iconScale
                 scaleY = timeline.iconScale
                 rotationZ = timeline.iconRotation
-            },
-    )
+            }
+            .background(
+                color = MaterialTheme.colorScheme.background,
+                shape = RoundedCornerShape(22),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(drawable),
+            contentDescription = stringResource(R.string.launch_icon_description),
+            contentScale = ContentScale.Fit,
+            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onBackground),
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
 }
 
 @Composable
 private fun LaunchTitle(
     centered: Boolean,
+    tablet: Boolean,
+    timeline: LaunchTimeline,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -258,89 +453,82 @@ private fun LaunchTitle(
         Text(
             text = stringResource(R.string.launch_title),
             color = MaterialTheme.colorScheme.onBackground,
-            fontSize = 22.sp,
+            fontSize = if (tablet) 28.sp else 22.sp,
             fontWeight = FontWeight.Medium,
-            letterSpacing = 0.15.sp,
+            letterSpacing = 4.sp,
             textAlign = if (centered) TextAlign.Center else TextAlign.Start,
+            modifier = Modifier
+                .offset(y = 12.dp * (1f - timeline.titleEntrance))
+                .alpha(timeline.titleAlpha),
         )
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
             text = stringResource(R.string.launch_subtitle),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 14.sp,
+            fontSize = if (tablet) 13.sp else 11.sp,
             fontWeight = FontWeight.Normal,
-            letterSpacing = 0.35.sp,
+            letterSpacing = 6.sp,
             textAlign = if (centered) TextAlign.Center else TextAlign.Start,
+            modifier = Modifier
+                .offset(y = 8.dp * (1f - timeline.subtitleEntrance))
+                .alpha(timeline.subtitleAlpha),
         )
     }
 }
 
 @Composable
-private fun LaunchParticles(
-    centerX: Dp,
-    centerY: Dp,
-    radius: Dp,
-    phase: Float,
-    alpha: Float,
+private fun LaunchProgress(
+    width: Dp,
+    timeline: LaunchTimeline,
+    modifier: Modifier = Modifier,
 ) {
-    val color = MaterialTheme.colorScheme.onBackground
-    Canvas(Modifier.fillMaxSize()) {
-        if (alpha <= 0f) return@Canvas
-        val cx = centerX.toPx()
-        val cy = centerY.toPx()
-        val baseRadius = radius.toPx()
-
-        repeat(16) { index ->
-            val angle = (index / 16f) * (PI * 2f) + phase * PI * 2f
-            val wobble = 0.84f +
-                0.16f * sin(phase * PI * 4f + index).toFloat()
-            val x = cx + cos(angle).toFloat() * baseRadius * wobble
-            val y = cy + sin(angle).toFloat() * baseRadius * 0.46f * wobble
-            drawCircle(
-                color = color,
-                radius = if (index % 3 == 0) 1.5.dp.toPx() else 0.9.dp.toPx(),
-                center = androidx.compose.ui.geometry.Offset(x, y),
-                alpha = alpha * (0.25f + (index % 4) * 0.08f),
-            )
-        }
-
-        repeat(3) { index ->
-            drawOval(
-                color = color,
-                topLeft = androidx.compose.ui.geometry.Offset(
-                    cx - baseRadius * (0.55f + index * 0.23f),
-                    cy - baseRadius * (0.20f + index * 0.08f),
+    Box(
+        modifier = modifier
+            .width(width)
+            .height(2.dp)
+            .alpha(timeline.progressAlpha)
+            .background(
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.18f),
+                shape = RoundedCornerShape(50),
+            ),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(width * timeline.progressFraction)
+                .height(2.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.onBackground,
+                    shape = RoundedCornerShape(50),
                 ),
-                size = androidx.compose.ui.geometry.Size(
-                    baseRadius * 2f * (0.55f + index * 0.23f),
-                    baseRadius * 2f * (0.20f + index * 0.08f),
-                ),
-                alpha = alpha * (0.12f - index * 0.02f),
-                style = Stroke(width = 0.7.dp.toPx(), cap = StrokeCap.Round),
-            )
-        }
+        )
     }
 }
 
 private data class LaunchTimeline(val raw: Float) {
-    val iconAlpha = smoothStep(0.00f, 0.10f, raw)
-    val iconScale = lerp(0.62f, 1f, smoothStep(0.00f, 0.20f, raw))
-    val iconRotation = lerp(-55f, 0f, smoothStep(0.00f, 0.28f, raw))
-    val textVisibility = when {
-        raw < 0.14f -> 0f
-        raw < 0.30f -> smoothStep(0.14f, 0.30f, raw)
-        raw < 0.64f -> 1f
-        raw < 0.78f -> 1f - smoothStep(0.64f, 0.78f, raw)
+    private val exit = 1f - smoothStep(0.73f, 0.82f, raw)
+
+    val sceneAlpha = when {
+        raw < 0.055f -> smoothStep(0f, 0.055f, raw)
+        raw < 0.73f -> 1f
+        raw < 0.82f -> 1f - smoothStep(0.73f, 0.82f, raw)
         else -> 0f
     }
-    val dividerAlpha = when {
-        raw < 0.05f -> smoothStep(0f, 0.05f, raw)
-        raw < 0.70f -> 1f
-        raw < 0.78f -> 1f - smoothStep(0.70f, 0.78f, raw)
-        else -> 0f
+    val iconAlpha = smoothStep(0f, 0.10f, raw)
+    val iconScale = lerp(0.72f, 1f, smoothStep(0f, 0.20f, raw))
+    val iconRotation = lerp(-18f, 0f, smoothStep(0f, 0.26f, raw))
+    val titleEntrance = smoothStep(0.145f, 0.365f, raw)
+    val subtitleEntrance = smoothStep(0.255f, 0.435f, raw)
+    val titleAlpha = titleEntrance * exit
+    val subtitleAlpha = subtitleEntrance * exit
+    val progressAlpha = smoothStep(0.327f, 0.435f, raw) * exit
+    val progressFraction = when {
+        raw < 0.364f -> 0f
+        raw < 0.538f -> lerp(0f, 0.55f, smoothStep(0.364f, 0.538f, raw))
+        raw < 0.669f -> lerp(0.55f, 0.80f, smoothStep(0.538f, 0.669f, raw))
+        raw < 0.800f -> lerp(0.80f, 1f, smoothStep(0.669f, 0.800f, raw))
+        else -> 1f
     }
-    val settle = smoothStep(0.64f, 0.78f, raw)
-    val particleAlpha = iconAlpha * (1f - smoothStep(0.68f, 0.78f, raw))
+    val settle = smoothStep(0.82f, 0.90f, raw)
 }
 
 private fun smoothStep(start: Float, end: Float, value: Float): Float {

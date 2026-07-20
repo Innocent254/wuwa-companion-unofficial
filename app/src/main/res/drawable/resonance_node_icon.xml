@@ -6,60 +6,65 @@
     android:viewportHeight="64">
 
     <path
-        android:alpha="0.42"
+        android:alpha="0.35"
         android:fillColor="@android:color/transparent"
         android:pathData="M8,32c6,-5 12,-5 18,0s12,5 18,0s12,-5 18,0"
         android:strokeColor="@color/splash_foreground"
         android:strokeLineCap="round"
-        android:strokeWidth="1.25" />
+        android:strokeWidth="1.8" />
     <path
-        android:alpha="0.25"
+        android:alpha="0.20"
         android:fillColor="@android:color/transparent"
         android:pathData="M8,32c6,-3 12,-3 18,0s12,3 18,0s12,-3 18,0"
         android:strokeColor="@color/splash_foreground"
         android:strokeLineCap="round"
-        android:strokeWidth="0.7" />
+        android:strokeWidth="1" />
     <path
-        android:alpha="0.42"
+        android:alpha="0.35"
         android:fillColor="@android:color/transparent"
         android:pathData="M32,8c5,6 5,12 0,18s-5,12 0,18s5,12 0,18"
         android:strokeColor="@color/splash_foreground"
         android:strokeLineCap="round"
-        android:strokeWidth="1.25" />
+        android:strokeWidth="1.8" />
     <path
-        android:alpha="0.25"
+        android:alpha="0.20"
         android:fillColor="@android:color/transparent"
         android:pathData="M32,8c3,6 3,12 0,18s-3,12 0,18s3,12 0,18"
         android:strokeColor="@color/splash_foreground"
         android:strokeLineCap="round"
-        android:strokeWidth="0.7" />
+        android:strokeWidth="1" />
 
-    <path android:alpha="0.90" android:fillColor="@color/splash_foreground" android:pathData="M38,26m-1.35,0a1.35,1.35 0,1 0,2.7 0a1.35,1.35 0,1 0,-2.7 0" />
-    <path android:alpha="0.70" android:fillColor="@color/splash_foreground" android:pathData="M42,30m-1,0a1,1 0,1 0,2 0a1,1 0,1 0,-2 0" />
-    <path android:alpha="0.50" android:fillColor="@color/splash_foreground" android:pathData="M44,36m-0.75,0a0.75,0.75 0,1 0,1.5 0a0.75,0.75 0,1 0,-1.5 0" />
-    <path android:alpha="0.90" android:fillColor="@color/splash_foreground" android:pathData="M26,38m-1.35,0a1.35,1.35 0,1 0,2.7 0a1.35,1.35 0,1 0,-2.7 0" />
-    <path android:alpha="0.70" android:fillColor="@color/splash_foreground" android:pathData="M22,34m-1,0a1,1 0,1 0,2 0a1,1 0,1 0,-2 0" />
-    <path android:alpha="0.50" android:fillColor="@color/splash_foreground" android:pathData="M20,28m-0.75,0a0.75,0.75 0,1 0,1.5 0a0.75,0.75 0,1 0,-1.5 0" />
+    <path android:alpha="0.90" android:fillColor="@color/splash_foreground" android:pathData="M38,26m-1.6,0a1.6,1.6 0,1 0,3.2 0a1.6,1.6 0,1 0,-3.2 0" />
+    <path android:alpha="0.70" android:fillColor="@color/splash_foreground" android:pathData="M42,30m-1.2,0a1.2,1.2 0,1 0,2.4 0a1.2,1.2 0,1 0,-2.4 0" />
+    <path android:alpha="0.50" android:fillColor="@color/splash_foreground" android:pathData="M44,36m-0.9,0a0.9,0.9 0,1 0,1.8 0a0.9,0.9 0,1 0,-1.8 0" />
+    <path android:alpha="0.35" android:fillColor="@color/splash_foreground" android:pathData="M43,42m-0.7,0a0.7,0.7 0,1 0,1.4 0a0.7,0.7 0,1 0,-1.4 0" />
+    <path android:alpha="0.25" android:fillColor="@color/splash_foreground" android:pathData="M40,46m-0.5,0a0.5,0.5 0,1 0,1 0a0.5,0.5 0,1 0,-1 0" />
+    <path android:alpha="0.90" android:fillColor="@color/splash_foreground" android:pathData="M26,38m-1.6,0a1.6,1.6 0,1 0,3.2 0a1.6,1.6 0,1 0,-3.2 0" />
+    <path android:alpha="0.70" android:fillColor="@color/splash_foreground" android:pathData="M22,34m-1.2,0a1.2,1.2 0,1 0,2.4 0a1.2,1.2 0,1 0,-2.4 0" />
+    <path android:alpha="0.50" android:fillColor="@color/splash_foreground" android:pathData="M20,28m-0.9,0a0.9,0.9 0,1 0,1.8 0a0.9,0.9 0,1 0,-1.8 0" />
+    <path android:alpha="0.35" android:fillColor="@color/splash_foreground" android:pathData="M21,22m-0.7,0a0.7,0.7 0,1 0,1.4 0a0.7,0.7 0,1 0,-1.4 0" />
+    <path android:alpha="0.25" android:fillColor="@color/splash_foreground" android:pathData="M24,18m-0.5,0a0.5,0.5 0,1 0,1 0a0.5,0.5 0,1 0,-1 0" />
 
     <path
         android:fillColor="@color/splash_foreground"
-        android:pathData="M32,32m-4.7,0a4.7,4.7 0,1 0,9.4 0a4.7,4.7 0,1 0,-9.4 0" />
+        android:pathData="M32,32m-5.5,0a5.5,5.5 0,1 0,11 0a5.5,5.5 0,1 0,-11 0" />
     <path
-        android:alpha="0.22"
+        android:alpha="0.15"
         android:fillColor="@android:color/transparent"
-        android:pathData="M32,32m-8.5,0a8.5,8.5 0,1 0,17 0a8.5,8.5 0,1 0,-17 0"
+        android:pathData="M32,32m-9,0a9,9 0,1 0,18 0a9,9 0,1 0,-18 0"
         android:strokeColor="@color/splash_foreground"
-        android:strokeWidth="0.65" />
+        android:strokeWidth="0.8" />
     <path
-        android:alpha="0.18"
+        android:alpha="0.08"
         android:fillColor="@android:color/transparent"
-        android:pathData="M32,32m-12.5,0a12.5,12.5 0,1 0,25 0a12.5,12.5 0,1 0,-25 0"
+        android:pathData="M32,32m-13,0a13,13 0,1 0,26 0a13,13 0,1 0,-26 0"
         android:strokeColor="@color/splash_foreground"
-        android:strokeWidth="0.45" />
+        android:strokeWidth="0.5" />
     <path
-        android:alpha="0.35"
+        android:alpha="0.30"
+        android:fillColor="@android:color/transparent"
         android:pathData="M32,18v6M32,40v6M18,32h6M40,32h6"
         android:strokeColor="@color/splash_foreground"
         android:strokeLineCap="round"
-        android:strokeWidth="0.8" />
+        android:strokeWidth="1" />
 </vector>
