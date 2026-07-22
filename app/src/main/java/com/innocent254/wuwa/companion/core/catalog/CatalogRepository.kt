@@ -96,6 +96,17 @@ class CatalogRepository(context: Context) {
                 appContext.getString(R.string.catalog_summary_unavailable)
             },
             metadata = record.displayMetadata(),
+            availability = record.availability,
+            isObtainable = record.isObtainable,
+            acquisitionSources = record.acquisitionSources,
+            combatRoles = record.combatRoles,
+            associatedResonator = record.associatedResonator,
+            passiveName = record.passiveName,
+            passiveDescription = record.passiveDescription,
+            maxLevel = record.maxLevel,
+            level1Stats = record.level1Stats,
+            maxLevelStats = record.maxLevelStats,
+            sourceUrl = record.source.sourceUrl,
             searchTerms = record.categories,
             accentLabel = usefulCategory ?: category.glyph,
             imageAvailable = imageAvailable,
@@ -150,7 +161,17 @@ private data class CatalogEntity(
     @SerialName("release_date") val releaseDate: String? = null,
     @SerialName("material_type") val materialType: String? = null,
     @SerialName("acquisition_sources") val acquisitionSources: List<String> = emptyList(),
+    val availability: String = "unknown",
+    @SerialName("is_obtainable") val isObtainable: Boolean? = null,
+    @SerialName("combat_roles") val combatRoles: List<String> = emptyList(),
+    @SerialName("associated_resonator") val associatedResonator: String? = null,
+    @SerialName("passive_name") val passiveName: String? = null,
+    @SerialName("passive_description") val passiveDescription: String? = null,
+    @SerialName("max_level") val maxLevel: Int? = null,
+    @SerialName("level_1_stats") val level1Stats: Map<String, String> = emptyMap(),
+    @SerialName("max_level_stats") val maxLevelStats: Map<String, String> = emptyMap(),
     @SerialName("image_path") val imagePath: String? = null,
+    val source: CatalogSource = CatalogSource(),
 ) {
     fun displayMetadata(): List<Pair<String, String>> = buildList {
         rarity?.let { add("Rarity" to "$it-star") }
@@ -165,3 +186,8 @@ private data class CatalogEntity(
         acquisitionSources.takeIf { it.isNotEmpty() }?.let { add("Source" to it.joinToString()) }
     }
 }
+
+@Serializable
+private data class CatalogSource(
+    @SerialName("source_url") val sourceUrl: String? = null,
+)
