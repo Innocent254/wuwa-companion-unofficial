@@ -62,6 +62,26 @@
     <string name="sample_material_detail">Sources, crafting routes, and compatible upgrade requirements.</string>
     <string name="entry_image_description">Image for %1$s</string>
 
+    <string name="details_overview">Overview</string>
+    <string name="details_roles">Combat roles</string>
+    <string name="details_associated_resonator">Associated Resonator</string>
+    <string name="details_availability">Availability</string>
+    <string name="details_status">Status</string>
+    <string name="details_sources">How to obtain</string>
+    <string name="details_base_stats_no_weapon">Base stats without a weapon</string>
+    <string name="details_weapon_stats">Weapon stats</string>
+    <string name="details_level_one">Level 1</string>
+    <string name="details_level_max">Level %1$d (maximum)</string>
+    <string name="details_max_level">Maximum level</string>
+    <string name="details_passive">Passive effect</string>
+    <string name="details_data_source">Data source and attribution</string>
+    <string name="availability_obtainable">Currently obtainable</string>
+    <string name="availability_unavailable">Not currently obtainable</string>
+    <string name="availability_limited_rotation">Limited — check the current Convene rotation</string>
+    <string name="availability_farmable">Farmable</string>
+    <string name="availability_permanent">Permanently available</string>
+    <string name="availability_unknown">Availability not confirmed</string>
+
     <string name="database_package_title">Database package</string>
     <string name="database_package_description">Core records remain available offline and can update without replacing the APK.</string>
     <string name="image_package_title">Image package</string>

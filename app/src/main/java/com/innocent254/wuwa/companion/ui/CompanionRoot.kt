@@ -935,8 +935,21 @@ private fun LibraryScreen(
     val metrics = LocalResponsiveMetrics.current
     var query by rememberSaveable { mutableStateOf("") }
     var activeCategoryId by rememberSaveable { mutableStateOf(initialCategoryId) }
+    var selectedEntryId by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val showImages = dataMode == DataMode.IMAGES && imagesInstalled
+
+    val selectedEntry = uiState.entries.firstOrNull { it.id == selectedEntryId }
+    if (selectedEntry != null) {
+        BackHandler { selectedEntryId = null }
+        LibraryEntryDetailScreen(
+            entry = selectedEntry,
+            showImages = showImages,
+            onBack = { selectedEntryId = null },
+            modifier = modifier,
+        )
+        return
+    }
 
     LaunchedEffect(initialCategoryId) {
         activeCategoryId = initialCategoryId
@@ -1022,6 +1035,7 @@ private fun LibraryScreen(
                             showImages = showImages,
                             forceStacked = true,
                             modifier = Modifier.fillMaxWidth(),
+                            onClick = { selectedEntryId = entry.id },
                         )
                     }
                 }
@@ -1042,6 +1056,7 @@ private fun LibraryScreen(
                             entry = entry,
                             showImages = showImages,
                             modifier = Modifier.fillMaxWidth(),
+                            onClick = { selectedEntryId = entry.id },
                         )
                     }
                 }
@@ -1789,9 +1804,11 @@ private fun LibraryEntryCard(
     showImages: Boolean,
     modifier: Modifier = Modifier,
     forceStacked: Boolean = false,
+    onClick: () -> Unit = {},
 ) {
     val metrics = LocalResponsiveMetrics.current
     Card(
+        onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(metrics.cardRadius),
     ) {
@@ -1841,6 +1858,171 @@ private fun LibraryEntryCard(
             }
         }
     }
+}
+
+@Composable
+private fun LibraryEntryDetailScreen(
+    entry: LibraryEntryUi,
+    showImages: Boolean,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val metrics = LocalResponsiveMetrics.current
+    val context = LocalContext.current
+    ResponsiveContentFrame(modifier) { contentModifier ->
+        LazyColumn(
+            modifier = contentModifier,
+            contentPadding = PaddingValues(
+                start = metrics.horizontalPadding,
+                end = metrics.horizontalPadding,
+                top = metrics.topPadding,
+                bottom = metrics.sectionSpacing,
+            ),
+            verticalArrangement = Arrangement.spacedBy(metrics.itemSpacing),
+        ) {
+            item {
+                ScreenHeader(
+                    title = entry.displayName(context),
+                    subtitle = entry.displayType(context),
+                    onBack = onBack,
+                )
+            }
+            if (showImages) {
+                item {
+                    EntryArtwork(
+                        entry = entry,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                            .clip(RoundedCornerShape(metrics.cardRadius)),
+                    )
+                }
+            }
+            item {
+                DetailSection(title = stringResource(R.string.details_overview)) {
+                    Text(
+                        text = entry.displayDetail(context),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    entry.metadata.forEach { (label, value) -> DetailRow(label, value) }
+                    if (entry.combatRoles.isNotEmpty()) {
+                        DetailRow(stringResource(R.string.details_roles), entry.combatRoles.joinToString())
+                    }
+                    entry.associatedResonator?.let {
+                        DetailRow(stringResource(R.string.details_associated_resonator), it)
+                    }
+                }
+            }
+            item {
+                DetailSection(title = stringResource(R.string.details_availability)) {
+                    DetailRow(
+                        stringResource(R.string.details_status),
+                        availabilityLabel(entry.availability, entry.isObtainable),
+                    )
+                    if (entry.acquisitionSources.isNotEmpty()) {
+                        DetailRow(
+                            stringResource(R.string.details_sources),
+                            entry.acquisitionSources.joinToString(separator = "\n"),
+                        )
+                    }
+                }
+            }
+            if (entry.level1Stats.isNotEmpty() || entry.maxLevelStats.isNotEmpty()) {
+                item {
+                    DetailSection(
+                        title = if (entry.categoryId == "weapon") {
+                            stringResource(R.string.details_weapon_stats)
+                        } else {
+                            stringResource(R.string.details_base_stats_no_weapon)
+                        },
+                    ) {
+                        StatsSnapshot(
+                            title = stringResource(R.string.details_level_one),
+                            stats = entry.level1Stats,
+                        )
+                        StatsSnapshot(
+                            title = entry.maxLevel?.let { stringResource(R.string.details_level_max, it) }
+                                ?: stringResource(R.string.details_max_level),
+                            stats = entry.maxLevelStats,
+                        )
+                    }
+                }
+            }
+            if (!entry.passiveName.isNullOrBlank() || !entry.passiveDescription.isNullOrBlank()) {
+                item {
+                    DetailSection(title = stringResource(R.string.details_passive)) {
+                        entry.passiveName?.let {
+                            Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                        entry.passiveDescription?.let {
+                            Text(it, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+            entry.sourceUrl?.let { sourceUrl ->
+                item {
+                    DetailSection(title = stringResource(R.string.details_data_source)) {
+                        Text(
+                            text = sourceUrl,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(shape = RoundedCornerShape(LocalResponsiveMetrics.current.cardRadius)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(LocalResponsiveMetrics.current.cardPadding),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    if (value.isBlank()) return
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.widthIn(min = 96.dp, max = 132.dp),
+        )
+        Text(text = value, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun StatsSnapshot(title: String, stats: Map<String, String>) {
+    if (stats.isEmpty()) return
+    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    stats.forEach { (label, value) -> DetailRow(label, value) }
+}
+
+@Composable
+private fun availabilityLabel(availability: String, isObtainable: Boolean?): String = when {
+    isObtainable == true -> stringResource(R.string.availability_obtainable)
+    isObtainable == false -> stringResource(R.string.availability_unavailable)
+    availability == "limited" -> stringResource(R.string.availability_limited_rotation)
+    availability == "farmable" -> stringResource(R.string.availability_farmable)
+    availability == "permanent" -> stringResource(R.string.availability_permanent)
+    else -> stringResource(R.string.availability_unknown)
 }
 
 @Composable
