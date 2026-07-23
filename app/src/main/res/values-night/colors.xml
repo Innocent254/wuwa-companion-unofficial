@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="splash_background">#0A0A0A</color>
+    <color name="splash_background">#0E1415</color>
     <color name="splash_foreground">#F5F5F5</color>
     <color name="splash_muted">#A0A0A0</color>
     <color name="splash_track">#303030</color>

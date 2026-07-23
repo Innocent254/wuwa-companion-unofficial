@@ -1,6 +1,8 @@
 package com.innocent254.wuwa.companion.ui.preferences
 
+import android.app.UiModeManager
 import android.content.Context
+import android.os.Build
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -25,11 +27,15 @@ enum class ImageMode {
 }
 
 class UiPreferences(context: Context) {
+    private val applicationContext = context.applicationContext
     private val preferences =
-        context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+        applicationContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
     @Suppress("DEPRECATION")
-    private val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+    private val packageInfo = applicationContext.packageManager.getPackageInfo(
+        applicationContext.packageName,
+        0,
+    )
     private val isFreshInstall = packageInfo.firstInstallTime == packageInfo.lastUpdateTime
 
     private var _themeMode by mutableStateOf(
@@ -79,6 +85,7 @@ class UiPreferences(context: Context) {
     fun setThemeMode(mode: ThemeMode) {
         _themeMode = mode
         preferences.edit().putString(KEY_THEME_MODE, mode.name).apply()
+        syncSystemSplashTheme(applicationContext, mode)
     }
 
     fun setDataMode(mode: DataMode) {
@@ -131,5 +138,43 @@ class UiPreferences(context: Context) {
         private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
         private const val KEY_LAST_SEEN_VERSION_CODE = "last_seen_version_code"
         private const val KEY_LAST_SEEN_VERSION_NAME = "last_seen_version_name"
+
+        /**
+         * Persists the app's theme with Android 12+ so the system starting window
+         * uses the same light/dark resource set as the Compose launch animation.
+         */
+        fun syncSystemSplashTheme(context: Context, mode: ThemeMode = savedThemeMode(context)) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+
+            val uiModeManager = context.getSystemService(UiModeManager::class.java)
+            val systemMode = uiModeManager.nightMode
+            val requestedMode = when (mode) {
+                ThemeMode.LIGHT -> UiModeManager.MODE_NIGHT_NO
+                ThemeMode.DARK -> UiModeManager.MODE_NIGHT_YES
+                ThemeMode.SYSTEM -> systemMode
+            }
+            val supportedModes = setOf(
+                UiModeManager.MODE_NIGHT_AUTO,
+                UiModeManager.MODE_NIGHT_NO,
+                UiModeManager.MODE_NIGHT_YES,
+                UiModeManager.MODE_NIGHT_CUSTOM,
+            )
+
+            uiModeManager.setApplicationNightMode(
+                requestedMode.takeIf(supportedModes::contains)
+                    ?: UiModeManager.MODE_NIGHT_AUTO,
+            )
+        }
+
+        private fun savedThemeMode(context: Context): ThemeMode {
+            val storedMode = context.getSharedPreferences(
+                PREFERENCES_NAME,
+                Context.MODE_PRIVATE,
+            ).getString(KEY_THEME_MODE, null)
+
+            return storedMode
+                ?.let { stored -> ThemeMode.entries.firstOrNull { it.name == stored } }
+                ?: ThemeMode.SYSTEM
+        }
     }
 }

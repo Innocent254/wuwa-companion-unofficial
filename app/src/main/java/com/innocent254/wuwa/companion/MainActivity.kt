@@ -51,8 +51,11 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val systemSplash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        systemSplash.setOnExitAnimationListener { splashScreenView ->
+            splashScreenView.remove()
+        }
         enableEdgeToEdge()
 
         setContent {
